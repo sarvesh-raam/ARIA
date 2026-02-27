@@ -12,7 +12,7 @@ class GroqService:
     Get your key at: https://console.groq.com
     """
 
-    MODEL = "llama3-70b-8192"   # 70-billion parameter model, free tier
+    MODEL = "llama-3.3-70b-versatile"   # Latest Groq model (free tier)
 
     def __init__(self):
         api_key = os.getenv("GROQ_API_KEY")
