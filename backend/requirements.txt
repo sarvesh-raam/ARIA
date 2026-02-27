@@ -1,0 +1,18 @@
+# ── Web Framework ──────────────────────────────────────────────
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.9       # Required for file uploads
+
+# ── PDF Reading ────────────────────────────────────────────────
+pymupdf==1.24.0               # PyMuPDF — fastest PDF text extractor
+
+# ── Vector Database ────────────────────────────────────────────
+chromadb==0.4.22              # Local vector DB — no cloud needed
+sentence-transformers==2.3.1  # all-MiniLM-L6-v2 for local embeddings
+
+# ── LLM ───────────────────────────────────────────────────────
+groq==0.4.2                   # Groq API client (free Llama-3 70B)
+
+# ── Utilities ──────────────────────────────────────────────────
+python-dotenv==1.0.0          # Load .env variables
+pydantic==2.5.3               # Data validation (used by FastAPI)
