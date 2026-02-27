@@ -82,12 +82,9 @@ class DocumentAgent:
 
     # ── Public API ───────────────────────────────────────────────
 
-    def ingest_document(self, content: bytes, filename: str) -> dict:
-        """
-        Full pipeline:
-          PDF bytes → extract text → chunk → embed → store in ChromaDB
-        Returns metadata dict with doc_id.
-        """
+    def ingest_document(self, content: bytes, filename: str, progress_callback=None) -> dict:
+        print(f"DEBUG: ingest_document started for {filename}")
+        if progress_callback: progress_callback(5, "Initializing processing...")
         # Stable, reproducible ID based on file content
         doc_id = hashlib.md5(content).hexdigest()[:12]
 
@@ -105,18 +102,24 @@ class DocumentAgent:
                 }
 
         # 1. Extract text
+        if progress_callback: progress_callback(10, "Extracting text from PDF...")
         text = self._extract_text(content)
         if not text.strip():
             raise ValueError("Could not extract any text from this PDF. Is it scanned/image-only?")
 
         # 2. Chunk
+        if progress_callback: progress_callback(25, "Splitting into semantic chunks...")
         chunks = self._chunk_text(text)
 
         # 3. Identify company (best-effort)
+        if progress_callback: progress_callback(40, "Identifying company profile...")
         company = self._extract_company_name(text, filename)
 
         # 4. Store embeddings in ChromaDB
+        if progress_callback: progress_callback(60, "Generating embeddings & storing in vector DB...")
         self.chroma.add_chunks(doc_id, chunks)
+
+        if progress_callback: progress_callback(90, "Finalizing metadata...")
 
         # 5. Persist metadata
         doc_info = {
