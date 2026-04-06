@@ -16,11 +16,16 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      - name: Push to Hugging Face (Subtree Sync)
+      - name: Push to Hugging Face (Forensic Subtree Sync)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Use subtree to push ONLY the 'backend' directory content to the root of the HF Space
+          # The surgical senior method: split, then force-push
           git remote add hf https://sarveshraam:$HF_TOKEN@huggingface.co/spaces/sarveshraam/ARIA
-          git fetch hf main
-          git subtree push --prefix backend hf main --force
+          git fetch hf main || true
+          
+          # 1. Split the 'backend' folder into a temporary branch
+          git subtree split --prefix backend -b hf_sync_branch
+          
+          # 2. Force-push that specific branch to Hugging Face's main branch
+          git push -f hf hf_sync_branch:main
