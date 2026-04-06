@@ -6,11 +6,11 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=7860
 
-# Install system dependencies (needed for PDF processing and ChromaDB)
+# Install system dependencies (Optimized for Debian Trixie/Slim)
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    software-properties-common \
+    libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Hugging Face Security: Add a non-root user (User ID 1000)
