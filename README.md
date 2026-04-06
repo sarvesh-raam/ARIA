@@ -1,87 +1,63 @@
-# ARIA: Autonomous Risk Intelligence Agent
-> **An enterprise-grade AI auditing ecosystem designed to identify clinical and financial risks through cross-referencing internal documentation with real-time global market data.**
+# ARIA: Professional Risk Audit Infrastructure
+> **A high-performance system for institutional risk intelligence. It cross-references forensic financial documentation with global market data to identify structural and clinical risks.**
 
-[![CI Build](https://github.com/sarvesh-raam/ARIA/actions/workflows/ci.yml/badge.svg)](https://github.com/sarvesh-raam/ARIA/actions)
+[![CI Pipeline](https://github.com/sarvesh-raam/ARIA/actions/workflows/ci.yml/badge.svg)](https://github.com/sarvesh-raam/ARIA/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/python-3.9+-yellow.svg)](#)
-[![Next.js Version](https://img.shields.io/badge/next.js-14.x-black.svg)](#)
+[![Python Version](https://img.shields.io/badge/Python-3.9+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/downloads/release/python-390/)
+[![Next.js Version](https://img.shields.io/badge/Next.js-14.x-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org/blog/next-14)
+[![Build Status](https://img.shields.io/badge/Release-v0.4.0--Stable-black.svg)](#)
 
 ---
 
 ## 1. Executive Summary
-ARIA (Autonomous Risk Intelligence Agent) is a professional AI-driven risk management system. It provides automated detection of clinical and financial anomalies within corporate documents by integrating Retrieval-Augmented Generation (RAG) with live external data fusion. Designed for high-stakes environments, ARIA transforms static reports into dynamic risk intelligence.
+ARIA (Autonomous Risk Intelligence Agent) provides high-fidelity financial and structural auditing. The system automates the detection of anomalies within corporate and clinical reports by integrating Retrieval-Augmented Generation (RAG) and deterministic inference models.
 
-## 2. Problem & Solution
-**The Challenge:** Manual auditing of extensive corporate and clinical documents is prone to human error, time-consuming, and often lacks context from real-time events. Analysts struggle to cross-reference internal claims against external market shifts, lawsuits, or reputational risks.
+## 2. Institutional Challenge & Solution
+**Challenge:** Traditional auditing of large-scale financial filings is historically manual, prone to error, and lacks the context of external market volatility. Identifying internal claim-to-market-reality discrepancies in real-time is a significant operational burden.
 
-**The Solution:** ARIA automates the entire audit lifecycle. By extracting data from complex PDFs and utilizing the Llama 3.3 70B model, it identifies internal discrepancies. Simultaneously, it pulls live global news and performs sentiment analysis, providing a unified, data-driven Risk Score that incorporates both internal validity and external volatility.
+**Solution:** ARIA provides an end-to-end automated audit pipeline. It utilizes high-precision extraction (Llama 3.3 Bridge) and semantic search (ChromaDB) to map internal risks, while simultaneously executing global market scans for external volatility. The resulting unified Risk Score (0-100) provides a data-driven metric for audit prioritization.
 
-## 3. Core Features
-- **Intelligent RAG Pipeline**: High-precision PDF text extraction and semantic search powered by ChromaDB for full-context document analysis.
-- **Large Language Model Orchestration**: Integration with Llama 3.3 70B via Groq for high-performance, low-latency reasoning and decision support.
-- **External Market Fusion**: Real-time integration with global datasets to detect external risks such as legal disputes and management changes.
-- **Automated Risk Scoring**: A proprietary algorithm that calculates a 0-100 Risk Score based on internal document anomalies and external market sentiment.
-- **Advanced Executive Reporting**: Generation of automated, presentation-ready PDF reports with detailed risk indicators and sectioned insights.
-- **Enterprise-Grade Dashboard**: A professional Next.js 14 interface featuring real-time Server-Sent Events (SSE) for transparent analysis progress tracking.
+## 3. System Architecture & Pillars
+- **Distributed Intelligence Mesh**: Integrates high-performance inference via Groq/Llama 3.3 70B for institutional reasoning.
+- **Forensic RAG Infrastructure**: Utilizes ChromaDB vector storage with specialized sentence-transformer embeddings to ensure high-recall semantic search across dense PDF reports.
+- **Strategic Pulse Gateway**: Real-time integration with NewsAPI for external risk fusion.
+- **Automated Reporting Pipeline**: Programmatic generation of presentation-ready PDF reports featuring detailed metric breakdowns.
+- **Analysis HQ Interface**: A Next.js 14-driven corporate dashboard using Server-Sent Events (SSE) for transparent monitoring of analysis workflows.
 
-## 4. Tech Stack
--   **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS, Framer Motion
--   **Backend**: FastAPI, Uvicorn, Python 3.9+
--   **AI Engines**: Groq (Llama 3.3 70B), Sentence-Transformers (Local Embeddings)
--   **Data Storage**: ChromaDB (Vector Database)
--   **Analysis Utilities**: NewsAPI, PyPDF2, FPDF2
+## 4. Environment & Deployment
 
-## 5. Architecture
-```text
-├── .github/          # CI/CD Workflows & Issue Templates
-├── backend/          # Python FastAPI Service
-│   ├── agents/       # AI Logic & RAG Orchestration
-│   ├── services/     # External API Integration (News, PDF Gen)
-│   ├── models/       # Data Schemas & ML Models
-│   └── main.py       # API Entry Point
-├── frontend/         # Next.js Application
-│   ├── src/          # Source Code
-│   │   ├── components/ # UI Components (NextUI/Tailwind)
-│   │   └── hooks/      # State & API Communication Tasks
-│   └── tailwind.config.js # Styling Configuration
-├── LICENSE           # MIT License
-└── README.md         # Documentation
-```
+### Hardware & Engine Requirements
+- Python 3.9+ Runtime
+- Node.js 18+ (LTS) 
+- External API Gateways: Groq, NewsAPI
 
-## 6. Installation & Setup
-
-### Prerequisites
-- Python 3.9 or higher
-- Node.js 18 or higher (LTS)
-- Groq API Key
-- NewsAPI Key
-
-### Step 1: Backend Configuration
+### Infrastructure Initialization
+**A. Backend Intelligence Service**
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+venv\Scripts\activate
 pip install -r requirements.txt
-# Configure Environment Variables in backend/.env
+# Configure local environment in backend/.env
 python main.py
 ```
 
-### Step 2: Frontend Configuration
+**B. Frontend Analytic Dashboard**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-## 7. Roadmap
--   **Multi-Agent Orchestration**: Implement LangGraph to facilitate collaborative agent reasoning for increased risk detection accuracy.
--   **Direct SEC Integration**: Implement automated pulling of company filings through Ticker-based lookups.
--   **Critical Alert System**: Integrate SendGrid for automated stakeholder notification on high-risk detections.
--   **Semantic Graph Visualization**: Deploy Neo4j to visualize complex corporate hierarchies and subsidiary relationships.
+## 5. Technical Roadmap
+- [ ] **Multi-Agent Orchestration**: Implementation of graph-based reasoning loops to increase detection accuracy.
+- [ ] **SEC/EDGAR Integration**: Direct ingestion of institutional filings via Ticker-based indexing.
+- [ ] **Automated Alert System**: Stakeholder notification via SendGrid for high-risk detection levels.
+- [ ] **Graph-Based Visualization**: Deployment of Neo4j to map complex subsidiary and corporate relationships.
 
-## 8. License
-Distributed under the MIT License. See `LICENSE` for more information.
+## 6. License
+Distributed under the MIT License. Professional use only.
 
 ---
 
-**Corporate Notice**: This system is designed for professional use by financial and clinical analysts. For enterprise distribution or custom integrations, please contact the maintainers.
+**Strategic Notice**: This repository is designed for professional financial analysts. For custom deployment or institutional integration documentation, please contact the maintainers.
