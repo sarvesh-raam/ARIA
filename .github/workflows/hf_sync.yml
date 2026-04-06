@@ -21,6 +21,6 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           # Use subtree to push ONLY the 'backend' directory content to the root of the HF Space
-          git remote add hf https://sarvesh-raam:$HF_TOKEN@huggingface.co/spaces/sarvesh-raam/ARIA-Intelligence-System
+          git remote add hf https://sarveshraam:$HF_TOKEN@huggingface.co/spaces/sarveshraam/ARIA
           git fetch hf main
           git subtree push --prefix backend hf main --force
