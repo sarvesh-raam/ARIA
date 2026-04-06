@@ -15,7 +15,7 @@ import {
     ChevronRight,
     Plus
 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, API_BASE_URL } from '@/lib/api';
 
 export default function Dashboard() {
     const [file, setFile] = useState<File | null>(null);
@@ -51,7 +51,7 @@ export default function Dashboard() {
             const tempTaskId = "task_" + Math.random().toString(36).substring(7);
 
             // Start listening to SSE for progress BEFORE uploading
-            const eventSource = new EventSource(`http://localhost:8000/api/progress/${tempTaskId}`);
+            const eventSource = new EventSource(`${API_BASE_URL}/api/progress/${tempTaskId}`);
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 setProgress(data.percentage);
@@ -63,7 +63,7 @@ export default function Dashboard() {
 
             // Close old listener and start new one for the final docId (analysis phase)
             eventSource.close();
-            const analysisSource = new EventSource(`http://localhost:8000/api/progress/${docId}`);
+            const analysisSource = new EventSource(`${API_BASE_URL}/api/progress/${docId}`);
             analysisSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
                 setProgress(data.percentage);
