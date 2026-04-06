@@ -1,0 +1,26 @@
+name: Sync with Hugging Face Hub
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to Hugging Face (Subtree Sync)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          # Use subtree to push ONLY the 'backend' directory content to the root of the HF Space
+          git remote add hf https://sarvesh-raam:$HF_TOKEN@huggingface.co/spaces/sarvesh-raam/ARIA-Intelligence-System
+          git fetch hf main
+          git subtree push --prefix backend hf main --force
