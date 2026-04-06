@@ -6,8 +6,9 @@ python-multipart==0.0.9       # Required for file uploads
 # ── PDF Reading ────────────────────────────────────────────────
 pymupdf==1.24.0               # PyMuPDF — fastest PDF text extractor
 
-# ── Vector Database ────────────────────────────────────────────
-chromadb==0.4.22              # Local vector DB — no cloud needed
+# ── Vector Database & AI ──────────────────────────────────────────
+numpy<2.0.0                   # CRITICAL: Lock to 1.x to avoid NumPy 2.0 breaking changes
+chromadb==0.4.24              # Updated for better stability
 sentence-transformers==2.3.1  # all-MiniLM-L6-v2 for local embeddings
 pysqlite3-binary              # Required for Linux (Hugging Face) stability
 
