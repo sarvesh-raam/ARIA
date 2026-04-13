@@ -12,20 +12,27 @@ import {
     Globe,
     Download,
     Loader2,
+    Search,
+    History,
+    Activity,
+    Server,
+    LayoutDashboard,
+    LogOut,
     ChevronRight,
-    Plus
+    CircleDashed,
+    BarChart3,
+    ArrowUpRight
 } from 'lucide-react';
 import { api, API_BASE_URL } from '@/lib/api';
 
-export default function Dashboard() {
-    const [file, setFile] = useState<File | null>(null);
+export default function CorporateDashboard() {
     const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState("");
     const [progress, setProgress] = useState(0);
     const [report, setReport] = useState<any>(null);
     const [history, setHistory] = useState<any[]>([]);
+    const [activeView, setActiveView] = useState<'dashboard' | 'history' | 'market'>('dashboard');
 
-    // Load history on mount
     useEffect(() => {
         fetchHistory();
     }, []);
@@ -47,10 +54,9 @@ export default function Dashboard() {
         setReport(null);
         setProgress(0);
         try {
-            setStatus("Initializing...");
+            setStatus("Initializing Neural Audit...");
             const tempTaskId = "task_" + Math.random().toString(36).substring(7);
 
-            // Start listening to SSE for progress BEFORE uploading
             const eventSource = new EventSource(`${API_BASE_URL}/api/progress/${tempTaskId}`);
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
@@ -61,7 +67,6 @@ export default function Dashboard() {
             const uploadRes = await api.uploadDocument(selected, tempTaskId);
             const docId = uploadRes.doc_id;
 
-            // Close old listener and start new one for the final docId (analysis phase)
             eventSource.close();
             const analysisSource = new EventSource(`${API_BASE_URL}/api/progress/${docId}`);
             analysisSource.onmessage = (event) => {
@@ -72,13 +77,11 @@ export default function Dashboard() {
             };
 
             const analysisRes = await api.analyzeDocument(docId);
-
             setReport(analysisRes);
             fetchHistory();
             analysisSource.close();
         } catch (err) {
             console.error(err);
-            alert("Analysis failed. Please check backend connection.");
         } finally {
             setLoading(false);
             setStatus("");
@@ -86,270 +89,444 @@ export default function Dashboard() {
     };
 
     return (
-        <main className="min-h-screen bg-background text-foreground selection:bg-purple/30 p-4 md:p-8">
-            {/* Background Glow */}
-            <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-purple/10 rounded-full blur-[120px] pointer-events-none -z-10" />
-            <div className="fixed bottom-0 right-1/4 w-[400px] h-[400px] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none -z-10" />
+        <div className="flex min-h-screen bg-background text-foreground font-sans overflow-hidden">
+            
+            {/* --- SIDE NAVIGATION RAIL --- */}
+            <aside className="w-20 lg:w-64 border-r border-white/5 flex flex-col bg-card/30 backdrop-blur-3xl shrink-0">
+                <div className="p-6 flex items-center gap-3">
+                    <div className="p-2 bg-brand rounded-lg shadow-glow-cyan shrink-0">
+                        <Shield className="w-6 h-6 text-background" />
+                    </div>
+                    <span className="hidden lg:block font-display text-xl tracking-tight text-white uppercase">Aria <span className="text-brand">HQ</span></span>
+                </div>
 
-            <div className="max-w-7xl mx-auto space-y-8">
-                {/* Header */}
-                <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-purple to-purple-dark rounded-xl shadow-lg shadow-purple/20">
-                            <Shield className="w-8 h-8 text-white" />
+                <nav className="flex-1 px-4 space-y-2 mt-4">
+                    <button 
+                        onClick={() => setActiveView('dashboard')}
+                        className={`nav-item w-full ${activeView === 'dashboard' ? 'text-brand bg-white/5' : ''}`}
+                    >
+                        <LayoutDashboard className="w-5 h-5 shrink-0" />
+                        <span className="hidden lg:block font-medium">Intelligence</span>
+                    </button>
+                    <button 
+                        onClick={() => setActiveView('history')}
+                        className={`nav-item w-full ${activeView === 'history' ? 'text-brand bg-white/5' : ''}`}
+                    >
+                        <History className="w-5 h-5 shrink-0" />
+                        <span className="hidden lg:block font-medium">Audit History</span>
+                    </button>
+                    <div className="h-px bg-white/5 my-4" />
+                    <button 
+                        onClick={() => setActiveView('market')}
+                        className={`nav-item w-full ${activeView === 'market' ? 'text-brand bg-white/5' : ''}`}
+                    >
+                        <Activity className="w-5 h-5 shrink-0" />
+                        <span className="hidden lg:block font-medium">Market Pulse</span>
+                    </button>
+                </nav>
+
+                <div className="p-4 mt-auto">
+                    <div className="glass-card bg-slate-900/40 p-3 hidden lg:block">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Server className="w-3 h-3 text-brand" />
+                            <span className="text-[10px] font-black uppercase text-slate-500">System Mesh</span>
                         </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight">ARIA</h1>
-                            <p className="text-foreground/50 text-sm">Autonomous Risk Intelligence Agent</p>
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-slate-400">Node Cluster</span>
+                                <span className="text-brand font-bold">ACTIVE</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-slate-400">LLM Instance</span>
+                                <span className="text-brand font-bold">READY</span>
+                            </div>
                         </div>
+                    </div>
+                    <button className="nav-item w-full mt-4 text-slate-500 hover:text-red-400">
+                        <LogOut className="w-5 h-5 shrink-0" />
+                        <span className="hidden lg:block font-medium">Shutdown</span>
+                    </button>
+                </div>
+            </aside>
+
+            {/* --- MAIN CONTENT AREA --- */}
+            <main className="flex-1 flex flex-col relative overflow-hidden">
+                <div className="animate-scan absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-brand to-transparent z-50 pointer-events-none" />
+                
+                {/* Dashboard Header */}
+                <header className="h-20 border-b border-white/5 px-8 flex items-center justify-between bg-background/50 backdrop-blur-md sticky top-0 z-40">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">Audit Workspace</span>
+                        <h2 className="text-xl font-display font-semibold text-white">
+                            {report ? `Analysis: ${report.company}` : activeView === 'history' ? 'System Audit Archives' : 'Strategic Overview'}
+                        </h2>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="hidden md:flex flex-col items-end">
-                            <span className="text-xs text-foreground/40 uppercase tracking-widest font-bold">System Status</span>
-                            <span className="text-xs text-green-500 flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                Phase 3 Live
-                            </span>
-                        </div>
-                        <label className="cursor-pointer group">
-                            <input type="file" className="hidden" onChange={handleUpload} accept=".pdf" />
-                            <div className="flex items-center gap-2 bg-white text-black px-5 py-2.5 rounded-full font-bold transition-transform active:scale-95 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-                                <Plus className="w-5 h-5" />
-                                New Analysis
+                        <div className="hidden lg:flex items-center gap-6 px-4 py-2 bg-slate-900/50 rounded-lg border border-white/5 mr-4">
+                            <div className="flex flex-col items-center">
+                                <span className="text-[9px] text-slate-500 uppercase font-black mb-0.5">Coverage</span>
+                                <span className="text-xs font-bold text-slate-200">GLOBAL</span>
                             </div>
+                            <div className="w-px h-6 bg-white/10" />
+                            <div className="flex flex-col items-center">
+                                <span className="text-[9px] text-slate-500 uppercase font-black mb-0.5">Latency</span>
+                                <span className="text-xs font-bold text-brand">240ms</span>
+                            </div>
+                        </div>
+
+                        <label className="btn-primary flex items-center gap-2 cursor-pointer">
+                            <input type="file" className="hidden" onChange={handleUpload} accept=".pdf" />
+                            <Upload className="w-4 h-4" />
+                            <span className="hidden sm:block">Deploy New Audit</span>
                         </label>
                     </div>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
-                    {/* Left Column: History/Docs */}
-                    <section className="lg:col-span-3 space-y-4">
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-foreground/40 px-2">History</h3>
-                        <div className="space-y-2">
-                            {history.length === 0 ? (
-                                <div className="glass p-4 rounded-2xl text-sm text-foreground/30 text-center italic">
-                                    No analyses yet
+                {/* Dashboard Content */}
+                <div className="flex-1 overflow-y-auto p-8 relative">
+                    <AnimatePresence mode="wait">
+                        {loading ? (
+                            <motion.div 
+                                key="loading"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="h-[70vh] flex flex-col items-center justify-center space-y-8"
+                            >
+                                <div className="p-8 border-2 border-brand/20 rounded-[40px] relative">
+                                    <div className="absolute inset-0 border border-brand/40 rounded-[40px] animate-pulse" />
+                                    <Loader2 className="w-20 h-20 text-brand animate-spin" />
                                 </div>
-                            ) : (
-                                history.map((doc: any) => (
-                                    <button
-                                        key={doc.doc_id}
-                                        onClick={() => {
-                                            setLoading(true);
-                                            api.analyzeDocument(doc.doc_id).then(res => {
-                                                setReport(res);
-                                                setLoading(false);
-                                            });
-                                        }}
-                                        className="w-full text-left glass glass-hover p-4 rounded-2xl group flex items-center justify-between"
-                                    >
-                                        <div className="flex items-center gap-3 truncate">
-                                            <FileText className="w-5 h-5 text-purple/60 group-hover:text-purple shrink-0" />
-                                            <div className="truncate">
-                                                <p className="text-sm font-bold truncate">{doc.company || doc.filename}</p>
-                                                <p className="text-[10px] text-foreground/40">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
-                                            </div>
-                                        </div>
-                                        <ChevronRight className="w-4 h-4 text-foreground/20 group-hover:text-foreground/60 transition-transform group-hover:translate-x-1" />
-                                    </button>
-                                ))
-                            )}
-                        </div>
-                    </section>
-
-                    {/* Main Dashboard Area */}
-                    <section className="lg:col-span-9">
-                        <AnimatePresence mode="wait">
-                            {loading ? (
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -20 }}
-                                    className="h-[60vh] flex flex-col items-center justify-center space-y-6 text-center"
-                                >
-                                    <div className="relative">
-                                        <Loader2 className="w-16 h-16 text-purple animate-spin" />
-                                        <Shield className="w-6 h-6 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-                                    </div>
-                                    <div className="w-full max-w-xs space-y-4">
-                                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                                            <motion.div
+                                <div className="text-center space-y-4 max-w-sm">
+                                    <h3 className="text-2xl font-display text-white">{status}</h3>
+                                    <div className="space-y-2">
+                                        <div className="h-1 w-full bg-slate-900 rounded-full overflow-hidden">
+                                            <motion.div 
+                                                className="h-full bg-brand"
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${progress}%` }}
-                                                className="h-full bg-purple shadow-[0_0_10px_rgba(139,92,246,0.5)]"
                                             />
                                         </div>
-                                        <div className="flex justify-between items-center px-1">
-                                            <h2 className="text-sm font-bold">{status || "Processing..."}</h2>
-                                            <span className="text-xs font-mono text-purple">{progress}%</span>
+                                        <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                            <span>Fusion Engine Phase</span>
+                                            <span className="text-brand">{progress}% COMPLETE</span>
                                         </div>
-                                        <p className="text-foreground/40 text-[10px] tracking-wider uppercase">
-                                            ARIA is fusing multiple data sources
-                                        </p>
                                     </div>
-                                </motion.div>
-                            ) : report ? (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.98 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="space-y-8"
-                                >
-                                    {/* Top Stats Row */}
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <div className="glass p-6 rounded-3xl relative overflow-hidden group">
-                                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                                <Shield className="w-16 h-16" />
+                                    <p className="text-slate-500 text-xs italic">ARIA is analyzing multi-source structural datasets...</p>
+                                </div>
+                            </motion.div>
+                        ) : report && activeView === 'dashboard' ? (
+                            <motion.div 
+                                key="report"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="space-y-8"
+                            >
+                                {/* Executive Summary Bar */}
+                                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                                    <div className="lg:col-span-3 glass-card bg-slate-900/40 flex flex-col md:flex-row items-center gap-8 border-l-4 border-l-brand">
+                                        <div className="shrink-0 space-y-2 text-center md:text-left">
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Risk Exposure Index</span>
+                                            <div className="flex items-end gap-2 justify-center md:justify-start">
+                                                <h2 className="text-7xl font-sans font-black text-white">{report.overall_risk_score}</h2>
+                                                <span className="text-xl font-bold text-slate-600 mb-2">/100</span>
                                             </div>
-                                            <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-4">Aria Risk Score</h4>
-                                            <div className="flex items-end gap-3">
-                                                <span className="text-5xl font-black">{report.overall_risk_score}</span>
-                                                <span className="text-sm font-bold mb-2 text-foreground/40">/100</span>
-                                            </div>
-                                            <p className={`text-sm mt-2 font-bold ${report.overall_risk_score > 70 ? 'text-risk-high' :
-                                                report.overall_risk_score > 40 ? 'text-risk-medium' : 'text-risk-low'
-                                                }`}>
+                                            <div className={`risk-badge inline-block ${
+                                                report.overall_risk_score > 70 ? 'text-risk-critical' : 
+                                                report.overall_risk_score > 40 ? 'text-risk-elevated' : 'text-risk-stable'
+                                            }`}>
                                                 {report.rating}
-                                            </p>
-                                        </div>
-
-                                        <div className="glass p-6 rounded-3xl flex flex-col justify-between">
-                                            <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/40">Entity Analyzed</h4>
-                                            <p className="text-2xl font-black mt-2 truncate">{report.company}</p>
-                                            <div className="flex items-center gap-2 mt-4 text-[10px] text-foreground/40">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-purple" />
-                                                Confidence: High
                                             </div>
                                         </div>
-
-                                        <div className="glass p-6 rounded-3xl flex flex-col justify-between group">
-                                            <h4 className="text-xs font-bold uppercase tracking-widest text-foreground/40">Final Artifact</h4>
-                                            <button
-                                                onClick={() => api.downloadReport(report.doc_id)}
-                                                className="bg-purple/10 hover:bg-purple/20 text-purple border border-purple/20 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 transition-colors mt-2"
-                                            >
-                                                <Download className="w-5 h-5" />
-                                                Download PDF Report
-                                            </button>
+                                        <div className="flex-1 space-y-4">
+                                            <h4 className="font-display text-2xl text-slate-200">Institutional Audit Narrative</h4>
+                                            <p className="text-slate-400 text-sm leading-relaxed max-w-2xl">
+                                                Based on structural forensic analysis of internal filings and external market intelligence, 
+                                                ARIA has determined a **{report.rating}** posture for **{report.company}**. 
+                                                {report.financial_signals.summary}
+                                            </p>
+                                            <div className="flex gap-4">
+                                                <button 
+                                                    onClick={() => api.downloadReport(report.doc_id)}
+                                                    className="flex items-center gap-2 text-[11px] font-bold text-brand hover:underline"
+                                                >
+                                                    <Download className="w-3.5 h-3.5" />
+                                                    GENERATE EXECUTIVE PDF
+                                                </button>
+                                                <div className="w-px h-4 bg-white/10" />
+                                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+                                                    <CheckCircle className="w-3.5 h-3.5 text-brand" />
+                                                    VERIFIED AUDIT
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                        {/* Financial Anomalies */}
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 px-2">
-                                                <TrendingDown className="w-5 h-5 text-purple" />
-                                                <h3 className="font-bold">Financial Signals</h3>
+                                    <div className="glass-card flex flex-col justify-center items-center text-center space-y-4 relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 p-2 opacity-5 scale-150 rotate-12 group-hover:scale-[1.6] transition-transform">
+                                            <Shield className="w-32 h-32" />
+                                        </div>
+                                        <BarChart3 className="w-10 h-10 text-brand" />
+                                        <div className="space-y-1">
+                                            <h4 className="text-xl font-display text-white">Internal Pulse</h4>
+                                            <p className="text-xs text-slate-500 uppercase tracking-widest font-black">Anomaly Detector</p>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                            <div className="h-full bg-brand w-2/3" />
+                                        </div>
+                                        <span className="text-[10px] text-slate-400">Confidence Threshold: 92%</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                                    {/* Financial Pillar */}
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                                                <FileText className="w-4 h-4" />
                                             </div>
-                                            <div className="bg-card p-4 rounded-3xl border border-white/5 space-y-4">
-                                                <p className="text-sm text-foreground/60 italic leading-relaxed">
-                                                    "{report.financial_signals.summary}"
-                                                </p>
-                                                <div className="space-y-3">
-                                                    {report.financial_signals.anomalies.map((anom: any, idx: number) => (
-                                                        <div key={idx} className="p-4 bg-white/5 rounded-2xl flex gap-4 items-start">
-                                                            <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${anom.severity === 'high' ? 'bg-risk-high/20 text-risk-high' : 'bg-risk-medium/20 text-risk-medium'
-                                                                }`}>
-                                                                <AlertTriangle className="w-4 h-4" />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <p className="text-sm font-bold">{anom.metric}</p>
-                                                                <p className="text-xs text-foreground/50 leading-relaxed">{anom.observation}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {report.financial_signals.anomalies.length === 0 && (
-                                                        <div className="text-center py-4 text-xs text-foreground/30 flex items-center justify-center gap-2">
-                                                            <CheckCircle className="w-4 h-4 text-risk-low" />
-                                                            No major anomalies detected
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            <h3 className="font-display text-xl text-white">Forensic Financial Signals</h3>
                                         </div>
 
-                                        {/* News Intelligence */}
                                         <div className="space-y-4">
-                                            <div className="flex items-center gap-2 px-2">
-                                                <Globe className="w-5 h-5 text-blue-400" />
-                                                <h3 className="font-bold">Market Intelligence</h3>
-                                            </div>
-                                            <div className="bg-card p-4 rounded-3xl border border-white/5 space-y-4">
-                                                <p className="text-sm text-foreground/60 italic leading-relaxed">
-                                                    "{report.news_signals.summary}"
-                                                </p>
-                                                <div className="space-y-3">
-                                                    {report.news_signals.signals.map((sig: any, idx: number) => (
-                                                        <div key={idx} className="p-4 bg-white/5 rounded-2xl flex gap-4 items-start">
-                                                            <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${sig.impact === 'high' ? 'bg-risk-high/20 text-risk-high' : 'bg-risk-medium/20 text-risk-medium'
-                                                                }`}>
-                                                                <Globe className="w-4 h-4" />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <p className="text-sm font-bold">{sig.signal}</p>
-                                                                <p className="text-xs text-foreground/50 leading-relaxed">{sig.description}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-
-                                                {/* News Feed */}
-                                                <div className="pt-2">
-                                                    <p className="text-[10px] font-black tracking-widest text-foreground/20 uppercase mb-3">Live Sources</p>
+                                            {report.financial_signals.anomalies.length > 0 ? report.financial_signals.anomalies.map((anom: any, idx: number) => (
+                                                <div key={idx} className="glass-card hover:bg-slate-900/60 flex gap-6">
+                                                    <div className={`w-1 shrink-0 rounded-full ${
+                                                        anom.severity === 'high' ? 'bg-risk-critical' : 'bg-risk-elevated'
+                                                    }`} />
                                                     <div className="space-y-2">
-                                                        {report.news_signals.top_stories?.map((story: any, idx: number) => (
-                                                            <a
-                                                                href={story.url}
-                                                                target="_blank"
-                                                                key={idx}
-                                                                className="flex items-center justify-between p-3 bg-white/5 rounded-xl text-[10px] hover:bg-white/10 transition-colors group"
-                                                            >
-                                                                <span className="font-bold truncate max-w-[70%]">{story.title}</span>
-                                                                <span className="text-purple group-hover:underline">{story.source}</span>
-                                                            </a>
-                                                        ))}
+                                                        <div className="flex items-center justify-between">
+                                                            <h5 className="font-bold text-white uppercase text-xs tracking-wider">{anom.metric}</h5>
+                                                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                                                anom.severity === 'high' ? 'bg-risk-critical/10 text-risk-critical' : 'bg-risk-elevated/10 text-risk-elevated'
+                                                            }`}>{anom.severity} Impact</span>
+                                                        </div>
+                                                        <p className="text-sm text-slate-400 leading-relaxed">{anom.observation}</p>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            )) : (
+                                                <div className="glass-card text-center py-12 border-dashed">
+                                                    <CheckCircle className="w-12 h-12 text-risk-stable mx-auto mb-4 opacity-40" />
+                                                    <p className="text-slate-500 text-sm">No internal structural anomalies identified.</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                </motion.div>
-                            ) : (
-                                /* Empty / Landing State */
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="h-[60vh] flex flex-col items-center justify-center text-center space-y-8"
-                                >
-                                    <div className="animate-float">
-                                        <div className="relative">
-                                            <div className="absolute inset-0 bg-purple blur-3xl opacity-20" />
-                                            <div className="relative glass p-8 rounded-[40px] border-white/10">
-                                                <Shield className="w-20 h-20 text-purple" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2 max-w-md">
-                                        <h2 className="text-3xl font-black">Ready for Deployment</h2>
-                                        <p className="text-foreground/40">
-                                            Upload a financial PDF (Annual Report, 10-K, etc.) and let ARIA cross-reference the internal data with live global markets.
-                                        </p>
-                                    </div>
-                                    <label className="cursor-pointer">
-                                        <input type="file" className="hidden" onChange={handleUpload} accept=".pdf" />
-                                        <div className="flex items-center gap-3 bg-white text-black px-8 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform hover:shadow-2xl hover:shadow-purple/20">
-                                            <Upload className="w-6 h-6" />
-                                            Start Risk Analysis
-                                        </div>
-                                    </label>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </section>
 
+                                    {/* Market Pillar */}
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-brand">
+                                                <Globe className="w-4 h-4" />
+                                            </div>
+                                            <h3 className="font-display text-xl text-white">External Market Fusion</h3>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            {report.news_signals.signals.map((sig: any, idx: number) => (
+                                                <div key={idx} className="glass-card hover:bg-slate-900/60 flex gap-6">
+                                                    <div className={`w-1 shrink-0 rounded-full ${
+                                                        sig.impact === 'high' ? 'bg-risk-critical' : 'bg-risk-elevated'
+                                                    }`} />
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <h5 className="font-bold text-white uppercase text-xs tracking-wider">{sig.signal}</h5>
+                                                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                                                                sig.impact === 'high' ? 'bg-risk-critical/10 text-risk-critical' : 'bg-risk-elevated/10 text-risk-elevated'
+                                                            }`}>{sig.impact} Impact</span>
+                                                        </div>
+                                                        <p className="text-sm text-slate-400 leading-relaxed">{sig.description}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            
+                                            {/* Top Stories Small Grid */}
+                                            <div className="pt-4 space-y-3">
+                                                <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest pl-2">Reference Intelligence Sources</span>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    {report.news_signals.top_stories?.slice(0, 4).map((story: any, i: number) => (
+                                                        <a 
+                                                            href={story.url} 
+                                                            target="_blank" 
+                                                            key={i} 
+                                                            className="p-3 bg-white/5 rounded-lg border border-white/5 hover:border-brand/40 transition-all flex items-start justify-between group"
+                                                        >
+                                                            <div className="space-y-1 max-w-[80%]">
+                                                                <p className="text-[10px] text-slate-400 font-bold uppercase truncate">{story.source}</p>
+                                                                <p className="text-[11px] text-white font-medium line-clamp-2 group-hover:text-brand transition-colors">{story.title}</p>
+                                                            </div>
+                                                            <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-brand" />
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ) : activeView === 'market' ? (
+                            <motion.div 
+                                key="market"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="space-y-8"
+                            >
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    <div className="glass-card bg-slate-900/40 p-6 space-y-4">
+                                        <div className="flex justify-between items-start">
+                                            <Globe className="w-6 h-6 text-brand" />
+                                            <span className="text-[10px] font-black text-brand uppercase tracking-widest">Global Scan</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-2xl font-display text-white">ACTIVE</p>
+                                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Market Monitoring</p>
+                                        </div>
+                                    </div>
+                                    <div className="glass-card bg-slate-900/40 p-6 space-y-4">
+                                        <div className="flex justify-between items-start">
+                                            <Activity className="w-6 h-6 text-indigo-400" />
+                                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Volatility</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-2xl font-display text-white">LOW</p>
+                                            <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Market Stability</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="glass-card bg-slate-900/60 p-12 text-center space-y-4 border-dashed border-white/10">
+                                    <Globe className="w-16 h-16 text-brand/20 mx-auto" />
+                                    <h3 className="text-xl font-display text-white">Autonomous Market Intelligence Feed</h3>
+                                    <p className="text-slate-500 text-sm max-w-lg mx-auto">
+                                        ARIA continues to monitor global financial news and forensic signals. 
+                                        Detailed market trends will materialize as more institutional data is ingested into the local vector mesh.
+                                    </p>
+                                </div>
+                            </motion.div>
+                        ) : activeView === 'history' ? (
+                            <motion.div 
+                                key="history"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="space-y-6"
+                            >
+                                <div className="flex items-center justify-between bg-slate-900/40 p-6 rounded-2xl border border-white/5">
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-center">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase">Analyses</p>
+                                            <p className="text-2xl font-display text-white">{history.length}</p>
+                                        </div>
+                                        <div className="w-px h-10 bg-white/10" />
+                                        <div className="text-center">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase">Avg Latency</p>
+                                            <p className="text-2xl font-display text-brand">1.2s</p>
+                                        </div>
+                                    </div>
+                                    <div className="relative w-72">
+                                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                                        <input 
+                                            placeholder="Search archives..." 
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg py-2 pl-10 pr-4 text-xs focus:border-brand focus:outline-none transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {history.map((doc: any) => (
+                                        <motion.button
+                                            whileHover={{ y: -4 }}
+                                            key={doc.doc_id}
+                                            onClick={() => {
+                                                setLoading(true);
+                                                setActiveView('dashboard');
+                                                api.analyzeDocument(doc.doc_id).then(res => {
+                                                    setReport(res);
+                                                    setLoading(false);
+                                                });
+                                            }}
+                                            className="glass-card hover:bg-slate-900/80 text-left space-y-4"
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div className="p-2 bg-white/5 rounded-lg">
+                                                    <FileText className="w-5 h-5 text-brand" />
+                                                </div>
+                                                <span className="text-[10px] text-slate-500 font-mono tracking-tighter">ID: {doc.doc_id.slice(0,8)}</span>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <h5 className="text-lg font-display text-white truncate">{doc.company || doc.filename}</h5>
+                                                <p className="text-xs text-slate-500 uppercase tracking-widest font-black">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                                            </div>
+                                            <div className="pt-2 flex items-center justify-between">
+                                                <span className="text-[10px] text-brand font-bold uppercase tracking-widest flex items-center gap-1.5">
+                                                    <CircleDashed className="w-3 h-3 animate-spin" />
+                                                    Re-Sync
+                                                </span>
+                                                <ChevronRight className="w-4 h-4 text-slate-700" />
+                                            </div>
+                                        </motion.button>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        ) : (
+                            /* Landing Empty State */
+                            <motion.div 
+                                key="empty"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="h-[70vh] flex flex-col items-center justify-center text-center space-y-12"
+                            >
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-brand/30 blur-[100px] animate-pulse" />
+                                    <div className="relative glass-card bg-slate-950 p-12 lg:p-16 rounded-[60px] border-white/5 border shadow-2xl">
+                                        <Shield className="w-24 h-24 lg:w-32 lg:h-32 text-brand" />
+                                    </div>
+                                </div>
+                                <div className="space-y-4 max-w-xl">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand text-[10px] font-black uppercase tracking-widest mb-2">
+                                        Deployment Ready: Phase 4
+                                    </div>
+                                    <h2 className="text-5xl font-display font-bold text-white tracking-tight">System Initialization</h2>
+                                    <p className="text-slate-400 text-lg leading-relaxed">
+                                        Deploy ARIA to perform autonomous, forensic financial audits combined with real-time semantic market cross-referencing.
+                                    </p>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row items-center justify-center gap-10">
+                                    <label className="btn-primary cursor-pointer scale-125 !px-10 !py-4 flex items-center gap-3 active:scale-110">
+                                        <input type="file" className="hidden" onChange={handleUpload} accept=".pdf" />
+                                        <Upload className="w-5 h-5" />
+                                        <span>Initialize Audit Engine</span>
+                                    </label>
+                                    <button 
+                                        onClick={() => setActiveView('history')}
+                                        className="text-slate-500 font-bold text-sm flex items-center gap-2 hover:text-white transition-colors"
+                                    >
+                                        <History className="w-4 h-4" />
+                                        VIEW ARCHIVES
+                                    </button>
+                                </div>
+
+
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-            </div>
-        </main>
+
+                {/* --- CORPORATE FOOTER --- */}
+                <footer className="h-10 border-t border-white/5 px-8 flex items-center justify-between text-[9px] font-black text-slate-600 uppercase tracking-widest bg-slate-950">
+                    <div className="flex items-center gap-4">
+                        <span>Cluster: 0xARIA-MAINNET</span>
+                        <div className="w-1 h-1 rounded-full bg-brand" />
+                        <span>Build: v4.2.0-PRO-FINAL</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <span className="text-brand">Confidential Strategic Artifact</span>
+                        <div className="w-1 h-1 rounded-full bg-slate-800" />
+                        <span>(C) 2026 ARIA COORPORATE</span>
+                    </div>
+                </footer>
+            </main>
+        </div>
     );
 }

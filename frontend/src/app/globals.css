@@ -2,50 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 237, 237, 237;
-  --background-start-rgb: 10, 10, 11;
-  --background-end-rgb: 10, 10, 11;
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-start-rgb));
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+@layer base {
+  body {
+    @apply text-foreground bg-background font-sans selection:bg-brand/30 selection:text-brand-light;
+    background-image: var(--mesh-glow);
+  }
+  
+  h1, h2, h3, h4, .font-display {
+    @apply tracking-tight font-semibold;
+    font-family: var(--font-outfit), ui-sans-serif, system-ui;
+  }
 }
 
 @layer components {
-  .glass {
-    @apply bg-card/60 backdrop-blur-xl border border-white/5;
+  .btn-primary {
+    @apply px-6 py-2.5 rounded-lg bg-brand hover:bg-brand-light text-background font-semibold transition-all duration-300 shadow-glow-cyan active:scale-95 disabled:opacity-50;
   }
   
-  .glass-hover {
-    @apply hover:bg-card/80 transition-all duration-300;
+  .glass-card {
+    @apply p-6 rounded-xl bg-card/60 backdrop-blur-xl border border-white/5 hover:border-brand/20 transition-all duration-500;
+    @apply hover:shadow-[0_0_20px_rgba(6,182,212,0.05)];
+  }
+  
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-brand hover:bg-white/5 transition-all duration-300;
+  }
+
+  .risk-badge {
+    @apply px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-current;
   }
 }
 
-/* Custom Scrollbar */
+/* Sophisticated Transitions */
+.page-transition {
+  transition: opacity 800ms ease, transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom Scrollbar (Corporate Style) */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  @apply bg-background;
 }
 ::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  @apply bg-slate-800 rounded-full border-4 border-background hover:bg-slate-700 transition-colors;
 }
 
-/* Animations */
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+@keyframes scan-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(1000%); opacity: 0; }
 }
 
-.animate-float {
-  animation: float 6s ease-in-out infinite;
+.animate-scan {
+  animation: scan-line 4s linear infinite;
 }

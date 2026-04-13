@@ -21,12 +21,15 @@ class ReportAgent:
         if not text: return "N/A"
         # Map some common emojis to safe text equivalents
         replacements = {
-            "🟢": "[LOW]", "🟡": "[MEDIUM]", "🔴": "[CRITICAL]", "•": "*"
+            "🟢": "[LOW]", "🟡": "[MEDIUM]", "🔴": "[CRITICAL]", "•": "*",
+            "©": "(c)", "®": "(r)", "™": "(TM)", "—": "--", "–": "-"
         }
         for emoji, safe_text in replacements.items():
             text = text.replace(emoji, safe_text)
-        # Remove any other non-ASCII characters
-        return text.encode('ascii', 'ignore').decode('ascii')
+            
+        # FORCE REMOVE all non-Latin1 characters to prevent Helvetica range errors
+        # This is a bulletproof way to ensure the PDF generator never crashes
+        return text.encode('latin-1', 'ignore').decode('latin-1')
 
     def generate_pdf_report(self, report_data: dict) -> str:
         """
@@ -52,7 +55,7 @@ class ReportAgent:
         
         pdf.set_font("Helvetica", '', 12)
         pdf.set_text_color(160, 160, 160)
-        pdf.cell(180, 5, "AUTONOMOUS RISK AUDIT • CONFIDENTIAL", ln=True, align='L')
+        pdf.cell(180, 5, "AUTONOMOUS RISK AUDIT * CONFIDENTIAL", ln=True, align='L')
         
         # --- REPORT METADATA ---
         pdf.set_y(55)

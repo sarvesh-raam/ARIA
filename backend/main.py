@@ -70,8 +70,8 @@ async def progress_stream(progress_id: str):
 @app.get("/")
 def health_check():
     return {
-        "status": "ARIA is online ✅",
-        "phase": "Phase 1 — Document Intelligence",
+        "status": "ARIA Intelligence System Online",
+        "phase": "Phase 1 - Document Intelligence",
         "version": "1.0.0"
     }
 

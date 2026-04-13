@@ -100,9 +100,9 @@ Output your findings in valid JSON format:
         total_score = f_score + n_score
 
         # Determine overall rating
-        rating = "Low Risk 🟢"
-        if total_score > 70: rating = "Critical Risk 🔴"
-        elif total_score > 40: rating = "Medium Risk 🟡"
+        rating = "Low Risk [STABLE]"
+        if total_score > 70: rating = "Critical Risk [CRITICAL]"
+        elif total_score > 40: rating = "Medium Risk [ELEVATED]"
 
         return {
             "doc_id": doc_id,

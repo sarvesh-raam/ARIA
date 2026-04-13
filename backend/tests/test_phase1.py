@@ -13,7 +13,7 @@ import json
 BASE_URL = "http://localhost:8000"
 
 def test_health():
-    print("\n🔍 Testing health check...")
+    print("\n[?] Testing health check...")
     r = requests.get(f"{BASE_URL}/")
     print(f"   Status: {r.status_code}")
     print(f"   Response: {r.json()}")
