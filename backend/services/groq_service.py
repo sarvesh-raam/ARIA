@@ -17,12 +17,16 @@ class GroqService:
     def __init__(self):
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
+            # Check for common cloud environment identifiers 
+            if os.getenv("SPACE_ID"): # Hugging Face
+                print("!! CRITICAL: GROQ_API_KEY is missing from Hugging Face Space Secrets !!")
+            elif os.getenv("VERCEL"): # Vercel
+                print("!! CRITICAL: GROQ_API_KEY is missing from Vercel Environment Variables !!")
+            
             raise EnvironmentError(
-                "GROQ_API_KEY not found!\n"
-                "1. Go to https://console.groq.com\n"
-                "2. Create a free account\n"
-                "3. Copy your API key\n"
-                "4. Add it to your .env file: GROQ_API_KEY=your_key_here"
+                "GROQ_API_KEY not found! \n"
+                "Local: Ensure it exists in your .env file.\n"
+                "Cloud: Ensure it is added to your provider's Secrets/Environment settings."
             )
         self.client = Groq(api_key=api_key)
 

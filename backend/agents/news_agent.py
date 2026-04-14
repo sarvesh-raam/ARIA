@@ -22,7 +22,9 @@ class NewsAgent:
     def search_news(self, company_name: str) -> List[Dict]:
         """Fetch the latest financial news for a company from the last 30 days."""
         if not self.enabled:
-            print("[NewsAgent] NEWS_API_KEY not found or invalid. Skipping live news search.")
+            # Check for cloud environment to provide better feedback
+            location = "Cloud Secrets" if os.getenv("SPACE_ID") or os.getenv("VERCEL") else ".env file"
+            print(f"[NewsAgent] WARNING: NEWS_API_KEY not found in {location}. External market fusion will be disabled.")
             return []
 
         # Calculate date range (last 30 days)
