@@ -33,25 +33,38 @@ class GroqService:
     def ask(self, prompt: str, max_tokens: int = 1024) -> str:
         """
         Send a prompt to Groq's Llama-3 70B and return the response text.
-        temperature=0.1 → factual, consistent responses (low randomness)
+        Includes a retry-mechanism to handle rate limiting (429) gracefully.
         """
-        try:
-            response = self.client.chat.completions.create(
-                model=self.MODEL,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are ARIA — an expert AI financial risk analyst. "
-                            "You are precise, factual, and professional. "
-                            "You only state what is supported by the documents and data provided."
-                        ),
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=max_tokens,
-                temperature=0.1,
-            )
-            return response.choices[0].message.content.strip()
-        except Exception as e:
-            return f"[ARIA Error] Could not get response from LLM: {str(e)}"
+        import time
+        retries = 3
+        backoff = 2 # seconds
+
+        for attempt in range(retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.MODEL,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are ARIA — an expert AI financial risk analyst. "
+                                "You are precise, factual, and professional. "
+                                "You only state what is supported by the documents and data provided."
+                            ),
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    max_tokens=max_tokens,
+                    temperature=0.1,
+                )
+                return response.choices[0].message.content.strip()
+            except Exception as e:
+                # Handle rate limiting (429) specifically
+                if "429" in str(e) and attempt < retries - 1:
+                    print(f"[Groq] Rate limit hit. Retrying in {backoff}s... (Attempt {attempt+1})")
+                    time.sleep(backoff)
+                    backoff *= 2
+                    continue
+                return f"[ARIA Error] Could not get response from LLM: {str(e)}"
+        
+        return "[ARIA Error] Maximum retries exceeded for LLM inference."

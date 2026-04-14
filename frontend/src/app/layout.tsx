@@ -6,11 +6,24 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
 
 export const metadata: Metadata = {
-    title: 'ARIA | Strategic Risk Intelligence',
-    description: 'Autonomous AI ecosystem for forensic financial auditing and real-time market intelligence.',
-    keywords: ['AI', 'Risk Analysis', 'Financial Audit', 'Forensic Intelligence', 'Llama 3.3'],
-    authors: [{ name: 'sarvesh-raam' }],
-    metadataBase: new URL('http://localhost:3000'),
+    title: 'ARIA | Autonomous Risk Intelligence Agent',
+    description: 'The industry-standard AI ecosystem for forensic financial auditing and multi-source market intelligence.',
+    keywords: ['AI', 'Risk Analysis', 'Financial Audit', 'Forensic Intelligence', 'Llama 3.3', 'Quantitative Finance'],
+    authors: [{ name: 'ARIA Institutional' }],
+    metadataBase: new URL('https://aria-six-phi.vercel.app'),
+    openGraph: {
+        title: 'ARIA Professional Audit Interface',
+        description: 'Next-generation forensic audit orchestration using Llama 3.3 and semantic search.',
+        url: 'https://aria-six-phi.vercel.app',
+        siteName: 'ARIA Intelligence',
+        locale: 'en_US',
+        type: 'website',
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'ARIA Professional Audit Interface',
+        description: 'Next-generation forensic audit orchestration.',
+    }
 }
 
 export const viewport: Viewport = {
