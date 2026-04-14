@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARIA Social Preview - Gradient Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #020617;
+            --brand: #22d3ee;
+            --accent: #3b82f6;
+            --text: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* 1280x640 Canvas */
+        .canvas {
+            width: 1280px;
+            height: 640px;
+            background-color: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            
+            /* The Glowing Border Magic */
+            border: 1px solid rgba(34, 211, 238, 0.3);
+            box-shadow: 
+                inset 0 0 60px rgba(0,0,0,1),
+                inset 0 0 100px rgba(59, 130, 246, 0.1),
+                0 0 40px rgba(34, 211, 238, 0.15);
+        }
+
+        .canvas::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            /* Creating the gradient edge glow */
+            border: 8px solid transparent;
+            background: linear-gradient(to right, var(--brand), var(--accent), var(--brand)) border-box;
+            mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            opacity: 0.6;
+        }
+
+        /* Ambient Glows */
+        .glow-top {
+            position: absolute;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 400px;
+            background: radial-gradient(ellipse at center, rgba(34, 211, 238, 0.15), transparent 70%);
+            z-index: 1;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+            z-index: 10;
+        }
+
+        .logo-box {
+            width: 220px;
+            height: 220px;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px);
+            border: 2px solid var(--brand);
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 
+                0 0 50px rgba(34, 211, 238, 0.4),
+                inset 0 0 30px rgba(34, 211, 238, 0.1);
+        }
+
+        .shield {
+            width: 110px;
+            height: 110px;
+            color: var(--brand);
+            filter: drop-shadow(0 0 20px rgba(34, 211, 238, 0.6));
+        }
+
+        .text-group {
+            text-align: center;
+        }
+
+        .brand-name {
+            font-family: 'Outfit', sans-serif;
+            font-size: 110px;
+            font-weight: 800;
+            line-height: 1;
+            color: white;
+            letter-spacing: 0.1em;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 24px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.6em;
+            text-transform: uppercase;
+            margin-top: 20px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="canvas">
+        <div class="glow-top"></div>
+        
+        <div class="content">
+            <div class="logo-box">
+                <svg class="shield" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/>
+                    <circle cx="12" cy="12" r="1.5" />
+                </svg>
+            </div>
+
+            <div class="text-group">
+                <h1 class="brand-name">ARIA</h1>
+                <div class="subtitle">Institutional Risk Intelligence</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
