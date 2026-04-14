@@ -28,8 +28,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000", 
         "http://127.0.0.1:3000", 
-        "https://aria-six-phi.vercel.app",
-        "https://aria-audit.vercel.app" # Future-proofing for your custom domain
+        "https://aria-intelligence.vercel.app",
+        "https://aria-six-phi.vercel.app" # Keeping old one as backup for now
     ],
     allow_credentials=True,
     allow_methods=["*"],

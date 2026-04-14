@@ -10,11 +10,11 @@ export const metadata: Metadata = {
     description: 'The industry-standard AI ecosystem for forensic financial auditing and multi-source market intelligence.',
     keywords: ['AI', 'Risk Analysis', 'Financial Audit', 'Forensic Intelligence', 'Llama 3.3', 'Quantitative Finance'],
     authors: [{ name: 'ARIA Institutional' }],
-    metadataBase: new URL('https://aria-six-phi.vercel.app'),
+    metadataBase: new URL('https://aria-intelligence.vercel.app'),
     openGraph: {
         title: 'ARIA Professional Audit Interface',
         description: 'Next-generation forensic audit orchestration using Llama 3.3 and semantic search.',
-        url: 'https://aria-six-phi.vercel.app',
+        url: 'https://aria-intelligence.vercel.app',
         siteName: 'ARIA Intelligence',
         locale: 'en_US',
         type: 'website',
