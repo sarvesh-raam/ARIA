@@ -11,11 +11,33 @@ A high-performance system for institutional risk intelligence. It cross-referenc
 ## Executive Summary
 ARIA (Autonomous Risk Intelligence Agent) provides high-fidelity financial and structural auditing. The system automates the detection of anomalies within corporate and clinical reports by integrating Retrieval-Augmented Generation (RAG) and deterministic inference models.
 
+👉 **Optimized for low-latency responses, generating structured outputs within 30 seconds.**
+
+## Interface & Output Preview
+![ARIA UI Screenshot](assets/ui-screenshot.png)
+> *Placeholder: Add your UI screenshot in the `assets` folder as `ui-screenshot.png`*
+
+![ARIA Output Screenshot](assets/output-screenshot.png)
+> *Placeholder: Add your Output screenshot in the `assets` folder as `output-screenshot.png`*
+
 ## Deployment
 - **Frontend**: Deployed on Vercel [View Live Dashboard](https://aria-intelligence.vercel.app)
 - **Backend Model**: Hosted on Hugging Face Spaces
 
 ## Architecture Diagram
+
+```text
+Frontend (React / Next.js)
+        ↓
+FastAPI Backend
+        ↓
+ChromaDB (Vector DB)
+        ↓
+LLM (Groq)
+```
+
+<details>
+<summary>View detailed dependency graph</summary>
 
 ```mermaid
 graph LR
@@ -26,6 +48,12 @@ graph LR
     D -->|Risk Analysis| B
     B -->|JSON Response| A
 ```
+</details>
+
+## System Design
+- Handles document ingestion pipeline
+- Uses vector search for efficient retrieval
+- Optimized API responses for low latency
 
 ## System Architecture & Components
 - **Frontend**: Next.js 14 dashboard providing real-time data streaming via Server-Sent Events (SSE).
