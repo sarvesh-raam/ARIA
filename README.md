@@ -12,6 +12,7 @@ A high-performance system for institutional risk intelligence. It cross-referenc
 ARIA (Autonomous Risk Intelligence Agent) provides high-fidelity financial and structural auditing. The system automates the detection of anomalies within corporate and clinical reports by integrating Retrieval-Augmented Generation (RAG) and deterministic inference models.
 
 👉 **Optimized for low-latency responses, generating structured outputs within 30 seconds.**
+👉 **Designed as a scalable full-stack system capable of handling real-time document analysis with optimized response latency.**
 
 ## Interface & Output Preview
 ![ARIA UI Screenshot](assets/ui-screenshot.png)
