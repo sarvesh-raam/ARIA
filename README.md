@@ -14,12 +14,8 @@ ARIA (Autonomous Risk Intelligence Agent) provides high-fidelity financial and s
 👉 **Optimized for low-latency responses, generating structured outputs within 30 seconds.**
 👉 **Designed as a scalable full-stack system capable of handling real-time document analysis with optimized response latency.**
 
-## Interface & Output Preview
-![ARIA UI Screenshot](assets/ui-screenshot.png)
-> *Placeholder: Add your UI screenshot in the `assets` folder as `ui-screenshot.png`*
-
-![ARIA Output Screenshot](assets/output-screenshot.png)
-> *Placeholder: Add your Output screenshot in the `assets` folder as `output-screenshot.png`*
+## Interface Preview
+![ARIA Dashboard Interface](assets/ui-screenshot.png)
 
 ## Deployment
 - **Frontend**: Deployed on Vercel [View Live Dashboard](https://aria-intelligence.vercel.app)
@@ -87,10 +83,6 @@ graph LR
 }
 ```
 
-## Interface Preview
-*(Insert Dashboard Screenshots Here)*
-- Dashboard Overview
-- Real-Time Risk Analysis View
 
 ## Environment & Deployment
 
