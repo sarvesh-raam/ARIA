@@ -1,33 +1,69 @@
 # ARIA: Professional Risk Audit Infrastructure
-> **A high-performance system for institutional risk intelligence. It cross-references forensic financial documentation with global market data to identify structural and clinical risks.**
+
+A high-performance system for institutional risk intelligence. It cross-references forensic financial documentation with global market data to identify structural and clinical risks.
 
 [![CI Pipeline](https://github.com/sarvesh-raam/ARIA/actions/workflows/ci.yml/badge.svg)](https://github.com/sarvesh-raam/ARIA/actions)
-[![HF Cloud Sync](https://github.com/sarvesh-raam/ARIA/actions/workflows/hf_sync.yml/badge.svg)](https://github.com/sarvesh-raam/ARIA/actions/workflows/hf_sync.yml)
 [![Vercel Deployment](https://img.shields.io/badge/Vercel-Deployed-black?logo=vercel)](https://aria-intelligence.vercel.app)
-[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Space-yellow)](https://huggingface.co/spaces/sarveshraam/ARIA)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Python Version](https://img.shields.io/badge/Python-3.9+-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/downloads/release/python-390/)
-[![Next.js Version](https://img.shields.io/badge/Next.js-14.x-000000.svg?logo=next.js&logoColor=white)](https://nextjs.org/blog/next-14)
-[![Build Status](https://img.shields.io/badge/Release-v0.4.0--Stable-black.svg)](#)
 
 ---
 
-## 1. Executive Summary
+## Executive Summary
 ARIA (Autonomous Risk Intelligence Agent) provides high-fidelity financial and structural auditing. The system automates the detection of anomalies within corporate and clinical reports by integrating Retrieval-Augmented Generation (RAG) and deterministic inference models.
 
-## 2. Institutional Challenge & Solution
-**Challenge:** Traditional auditing of large-scale financial filings is historically manual, prone to error, and lacks the context of external market volatility. Identifying internal claim-to-market-reality discrepancies in real-time is a significant operational burden.
+## Deployment
+- **Frontend**: Deployed on Vercel [View Live Dashboard](https://aria-intelligence.vercel.app)
+- **Backend Model**: Hosted on Hugging Face Spaces
 
-**Solution:** ARIA provides an end-to-end automated audit pipeline. It utilizes high-precision extraction (Llama 3.3 Bridge) and semantic search (ChromaDB) to map internal risks, while simultaneously executing global market scans for external volatility. The resulting unified Risk Score (0-100) provides a data-driven metric for audit prioritization.
+## Architecture Diagram
 
-## 3. System Architecture & Pillars
-- **Distributed Intelligence Mesh**: Integrates high-performance inference via Groq/Llama 3.3 70B for institutional reasoning.
-- **Forensic RAG Infrastructure**: Utilizes ChromaDB vector storage with specialized sentence-transformer embeddings to ensure high-recall semantic search across dense PDF reports.
+```mermaid
+graph LR
+    A[Next.js Frontend] -->|REST API Requests| B[FastAPI Backend]
+    B -->|Context Retrieval| C[(ChromaDB Vector Store)]
+    B -->|Inference| D[Llama 3.3 / Groq LLM]
+    C -->|Document Embeddings| B
+    D -->|Risk Analysis| B
+    B -->|JSON Response| A
+```
+
+## System Architecture & Components
+- **Frontend**: Next.js 14 dashboard providing real-time data streaming via Server-Sent Events (SSE).
+- **Backend API**: Python FastAPI layer handling requests, orchestration, and integrations.
+- **Forensic RAG Infrastructure**: ChromaDB vector storage combined with specialized sentence-transformer embeddings to query complex PDF reports.
+- **LLM Intelligence Mesh**: High-performance inference via Groq/Llama 3.3 70B for institutional reasoning.
 - **Strategic Pulse Gateway**: Real-time integration with NewsAPI for external risk fusion.
-- **Automated Reporting Pipeline**: Programmatic generation of presentation-ready PDF reports featuring detailed metric breakdowns.
-- **Analysis HQ Interface**: A Next.js 14-driven corporate dashboard using Server-Sent Events (SSE) for transparent monitoring of analysis workflows.
 
-## 4. Environment & Deployment
+## API Flow
+1. **Document Ingestion (`/api/v1/upload`)**: PDF files are uploaded, chunked, and embedded into ChromaDB.
+2. **Risk Query (`/api/v1/analyze`)**: The frontend sends an analysis request.
+3. **Retrieval**: The backend performs semantic search against the vector database to retrieve highly relevant chunks.
+4. **Market Context**: External APIs (e.g., NewsAPI) are pinged for live market conditions.
+5. **LLM Evaluation**: Retrieved text and market data are processed by the LLM to compute a Risk Score (0-100).
+6. **Streaming Response**: Results are streamed back to the frontend using Server-Sent Events.
+
+## Example Output Payload
+```json
+{
+  "status": "success",
+  "data": {
+    "risk_score": 82,
+    "classification": "High Volatility",
+    "findings": [
+      "Inconsistent debt-to-equity ratio reported in Section 3.2.",
+      "Recent market news indicates supply chain disruptions affecting raw material costs."
+    ],
+    "confidence_level": 0.94
+  }
+}
+```
+
+## Interface Preview
+*(Insert Dashboard Screenshots Here)*
+- Dashboard Overview
+- Real-Time Risk Analysis View
+
+## Environment & Deployment
 
 ### Hardware & Engine Requirements
 - Python 3.9+ Runtime
@@ -35,32 +71,25 @@ ARIA (Autonomous Risk Intelligence Agent) provides high-fidelity financial and s
 - External API Gateways: Groq, NewsAPI
 
 ### Infrastructure Initialization
-**A. Backend Intelligence Service**
+**A. Backend Intelligence Service (FastAPI)**
 ```bash
 cd backend
 python -m venv venv
-venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
-# Configure local environment in backend/.env
 python main.py
 ```
 
-**B. Frontend Analytic Dashboard**
+**B. Frontend Analytic Dashboard (Next.js)**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-## 5. Technical Roadmap
-- [ ] **Multi-Agent Orchestration**: Implementation of graph-based reasoning loops to increase detection accuracy.
-- [ ] **SEC/EDGAR Integration**: Direct ingestion of institutional filings via Ticker-based indexing.
-- [ ] **Automated Alert System**: Stakeholder notification via SendGrid for high-risk detection levels.
-- [ ] **Graph-Based Visualization**: Deployment of Neo4j to map complex subsidiary and corporate relationships.
+## Technical Roadmap
+- Multi-Agent Orchestration: Implementation of graph-based reasoning loops to increase detection accuracy.
+- SEC/EDGAR Integration: Direct ingestion of institutional filings via Ticker-based indexing.
 
-## 6. License
+## License
 Distributed under the MIT License. Professional use only.
-
----
-
-**Strategic Notice**: This repository is designed for professional financial analysts. For custom deployment or institutional integration documentation, please contact the maintainers.
