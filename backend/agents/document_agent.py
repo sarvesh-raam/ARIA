@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from services.chroma_service import ChromaService
-from services.groq_service import GroqService
+from services.groq_service import GroqService, LLMError
 
 
 class DocumentAgent:
@@ -76,10 +76,15 @@ class DocumentAgent:
             "From the following document excerpt, extract ONLY the company name "
             "(no explanation, no punctuation, just the name):\n\n" + snippet
         )
-        # Headroom for the model's reasoning tokens; the length check below still guards the answer
-        name = self.groq.ask(prompt, max_tokens=150).strip()
+        fallback = Path(filename).stem
+        try:
+            # Headroom for the model's reasoning tokens; the length check below still guards the answer
+            name = self.groq.ask(prompt, max_tokens=150).strip()
+        except LLMError as e:
+            print(f"[DocumentAgent] Company name extraction failed, using filename: {e}")
+            return fallback
         # If the LLM returns something too long it probably failed
-        return name if len(name) < 80 else filename.replace(".pdf", "")
+        return name if len(name) < 80 else fallback
 
     # ── Public API ───────────────────────────────────────────────
 

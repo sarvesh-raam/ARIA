@@ -1,8 +1,13 @@
 import os
+import json
 from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+class LLMError(Exception):
+    """Raised when the LLM call fails or returns an unusable response."""
 
 
 class GroqService:
@@ -33,15 +38,18 @@ class GroqService:
             )
         self.client = Groq(api_key=api_key)
 
-    def ask(self, prompt: str, max_tokens: int = 1024) -> str:
+    def ask(self, prompt: str, max_tokens: int = 1024, json_mode: bool = False) -> str:
         """
         Send a prompt to the configured Groq model and return the response text.
         Includes a retry-mechanism to handle rate limiting (429) gracefully.
+        Raises LLMError on failure so callers never mistake an error for an answer.
         """
         import time
         retries = 3
         backoff = 2 # seconds
         extra_body = {"reasoning_effort": self.REASONING_EFFORT} if self.MODEL.startswith("openai/gpt-oss") else {}
+        if json_mode:
+            extra_body["response_format"] = {"type": "json_object"}
 
         for attempt in range(retries):
             try:
@@ -62,7 +70,6 @@ class GroqService:
                     temperature=0.1,
                     extra_body=extra_body,
                 )
-                return response.choices[0].message.content.strip()
             except Exception as e:
                 # Handle rate limiting (429) specifically
                 if "429" in str(e) and attempt < retries - 1:
@@ -70,6 +77,22 @@ class GroqService:
                     time.sleep(backoff)
                     backoff *= 2
                     continue
-                return f"[ARIA Error] Could not get response from LLM: {str(e)}"
-        
-        return "[ARIA Error] Maximum retries exceeded for LLM inference."
+                raise LLMError(f"Could not get response from LLM: {e}") from e
+
+            content = (response.choices[0].message.content or "").strip()
+            if not content:
+                raise LLMError("LLM returned an empty response (token budget may be too small)")
+            return content
+
+        raise LLMError("Maximum retries exceeded for LLM inference")
+
+    def ask_json(self, prompt: str, max_tokens: int = 2048) -> dict:
+        """Ask for a JSON object (Groq JSON mode) and return it parsed."""
+        text = self.ask(prompt, max_tokens=max_tokens, json_mode=True)
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise LLMError(f"LLM returned invalid JSON: {e}") from e
+        if not isinstance(data, dict):
+            raise LLMError("LLM returned JSON that is not an object")
+        return data

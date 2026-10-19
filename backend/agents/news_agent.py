@@ -1,9 +1,9 @@
 import os
 import requests
-import json
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Optional
 from services.groq_service import GroqService
+from services.validation import clamp_score, normalize_level, require_list_of_dicts
 
 class NewsAgent:
     """
@@ -19,13 +19,16 @@ class NewsAgent:
         self.groq = GroqService()
         self.enabled = bool(self.api_key and self.api_key != "your_newsapi_key_here")
 
-    def search_news(self, company_name: str) -> List[Dict]:
-        """Fetch the latest financial news for a company from the last 30 days."""
+    def search_news(self, company_name: str) -> Optional[List[Dict]]:
+        """
+        Fetch the latest financial news for a company from the last 30 days.
+        Returns None when news is unavailable (no key / request failed), [] when nothing was found.
+        """
         if not self.enabled:
             # Check for cloud environment to provide better feedback
             location = "Cloud Secrets" if os.getenv("SPACE_ID") or os.getenv("VERCEL") else ".env file"
             print(f"[NewsAgent] WARNING: NEWS_API_KEY not found in {location}. External market fusion will be disabled.")
-            return []
+            return None
 
         # Calculate date range (last 30 days)
         from_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
@@ -47,13 +50,20 @@ class NewsAgent:
             return data.get("articles", [])
         except Exception as e:
             print(f"[NewsAgent Error] Failed to fetch news: {e}")
-            return []
+            return None
 
-    def analyze_news(self, company_name: str, articles: List[Dict]) -> Dict:
+    def analyze_news(self, company_name: str, articles: Optional[List[Dict]]) -> Dict:
         """
         Use the LLM to filter news for risk relevance and assign a sentiment score.
         Returns a structured risk assessment based on news.
         """
+        if articles is None:
+            return {
+                "news_risk_score": 0,
+                "summary": "News analysis unavailable: the news service could not be reached or is not configured.",
+                "signals": [],
+                "available": False,
+            }
         if not articles:
             return {
                 "news_risk_score": 0,
@@ -67,7 +77,7 @@ class NewsAgent:
             news_snippet += f"[{i+1}] Title: {art['title']}\nDescription: {art.get('description', 'N/A')}\n\n"
 
         prompt = f"""You are ARIA, a financial risk analyst.
-Analyze these 5 news headlines for {company_name}.
+Analyze these {len(articles)} news headlines for {company_name}.
 Your goal is to identify CURRENT RISKS (lawsuits, financial drops, scandals, management changes).
 
 NEWS ARTICLES:
@@ -86,26 +96,19 @@ Output your response in valid JSON format ONLY:
   ]
 }}
 """
-        response_text = self.groq.ask(prompt)
-        
-        try:
-            # Try to parse the LLM's JSON response
-            # Sometimes LLMs wrap JSON in code blocks, so we clean it
-            clean_json = response_text.strip()
-            if clean_json.startswith("```json"):
-                clean_json = clean_json[7:-3].strip()
-            elif clean_json.startswith("```"):
-                clean_json = clean_json[3:-3].strip()
-                
-            result = json.loads(clean_json)
-            return result
-        except Exception as e:
-            print(f"[NewsAgent Error] Failed to parse LLM analysis: {e}\nResponse: {response_text}")
-            return {
-                "news_risk_score": 10,  # default slight risk if we found news but failed to analyze
-                "summary": "News found but analysis failed. Recent headlines were detected.",
-                "signals": [{"signal": "Undetermined News Activity", "impact": "low", "description": "System found recent news articles but reasoning failed."}]
-            }
+        data = self.groq.ask_json(prompt)
+        return {
+            "news_risk_score": clamp_score(data.get("news_risk_score")),
+            "summary": str(data.get("summary", "")),
+            "signals": [
+                {
+                    "signal": str(sig.get("signal", "Unspecified")),
+                    "impact": normalize_level(sig.get("impact")),
+                    "description": str(sig.get("description", "")),
+                }
+                for sig in require_list_of_dicts(data, "signals")
+            ],
+        }
 
     def get_risk_report(self, company_name: str) -> Dict:
         """One-stop method to get the news risk report."""
@@ -115,7 +118,7 @@ Output your response in valid JSON format ONLY:
         # Add source links to signals if possible
         analysis["top_stories"] = [
             {"title": a["title"], "url": a["url"], "source": a["source"]["name"]}
-            for a in articles[:3]
+            for a in (articles or [])[:3]
         ]
         
         return analysis

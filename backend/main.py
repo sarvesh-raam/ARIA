@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import asyncio
@@ -15,6 +15,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from agents.document_agent import DocumentAgent
 from agents.risk_agent import RiskAgent
+from services.groq_service import LLMError
 from models.schemas import QueryRequest, RiskReport
 
 app = FastAPI(
@@ -35,6 +36,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(LLMError)
+async def llm_error_handler(request, exc: LLMError):
+    """The AI backend failed — report it instead of returning a made-up result."""
+    print(f"[LLMError] {request.url.path}: {exc}")
+    return JSONResponse(status_code=502, content={"detail": f"AI analysis failed: {exc}"})
 
 # Initialize agents
 doc_agent = DocumentAgent()
@@ -110,7 +117,13 @@ async def upload_document(file: UploadFile = File(...), task_id: str = None):
             progress_callback=lambda p, s: update_progress(progress_id, p, s)
         )
 
-    result = await run_in_threadpool(sync_ingest)
+    try:
+        result = await run_in_threadpool(sync_ingest)
+    except Exception as e:
+        update_progress(progress_id, 100, "Upload failed")
+        if isinstance(e, ValueError):
+            raise HTTPException(status_code=400, detail=str(e))
+        raise
     
     # Map the progress to the actual doc_id as well for future analysis steps
     doc_id = result["doc_id"]
@@ -170,7 +183,13 @@ async def analyze_document(doc_id: str):
             progress_callback=lambda p, s: update_progress(doc_id, p, s)
         )
 
-    result = await run_in_threadpool(sync_analyze)
+    try:
+        result = await run_in_threadpool(sync_analyze)
+    except Exception as e:
+        update_progress(doc_id, 100, "Analysis failed")
+        if isinstance(e, ValueError):
+            raise HTTPException(status_code=422, detail=str(e))
+        raise
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
     
@@ -195,6 +214,8 @@ async def get_pdf_report(doc_id: str):
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except LLMError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
 

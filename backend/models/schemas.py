@@ -55,6 +55,7 @@ class NewsAnalysis(BaseModel):
     summary: str
     signals: list[RiskSignal]
     top_stories: Optional[list[dict]] = None
+    available: bool = True  # False when news could not be fetched
 
 
 class RiskReport(BaseModel):

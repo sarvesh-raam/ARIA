@@ -1,9 +1,9 @@
-from typing import Dict, List
-import json
+from typing import Dict
 from agents.document_agent import DocumentAgent
 from agents.news_agent import NewsAgent
 from agents.report_agent import ReportAgent
 from services.groq_service import GroqService
+from services.validation import clamp_score, normalize_level, require_list_of_dicts
 
 class RiskAgent:
     """
@@ -31,7 +31,9 @@ class RiskAgent:
             "Identify any unusual year-over-year drops greater than 10% or spikes in debt."
         )
         rag_data = self.doc_agent.query_document(doc_id, query)
-        
+        if rag_data["chunks_searched"] == 0:
+            raise ValueError("No searchable content found for this document. Try re-uploading it.")
+
         prompt = f"""You are ARIA, a forensic financial auditor.
 Based on the following document excerpts, identify SPECIFIC FINANCIAL ANOMALIES.
 
@@ -51,20 +53,19 @@ Output your findings in valid JSON format:
   "summary": "1-sentence financial health summary"
 }}
 """
-        response_text = self.groq.ask(prompt)
-        try:
-            clean_json = response_text.strip()
-            if clean_json.startswith("```json"):
-                clean_json = clean_json[7:-3].strip()
-            elif clean_json.startswith("```"):
-                clean_json = clean_json[3:-3].strip()
-            return json.loads(clean_json)
-        except:
-            return {
-                "financial_risk_score": 5,
-                "anomalies": [],
-                "summary": "Could not extract specific anomalies. Basic review suggests stable operations."
-            }
+        data = self.groq.ask_json(prompt)
+        return {
+            "financial_risk_score": clamp_score(data.get("financial_risk_score")),
+            "anomalies": [
+                {
+                    "metric": str(a.get("metric", "Unspecified")),
+                    "observation": str(a.get("observation", "")),
+                    "severity": normalize_level(a.get("severity")),
+                }
+                for a in require_list_of_dicts(data, "anomalies")
+            ],
+            "summary": str(data.get("summary", "")),
+        }
 
     def run_full_analysis(self, doc_id: str, progress_callback=None) -> Dict:
         """
