@@ -8,13 +8,13 @@ export default function HistoryList({ docs, onOpen }: { docs: DocumentSummary[];
     return (
         <div className="mx-auto max-w-3xl">
             <h1 className="text-xl font-semibold tracking-tight">History</h1>
-            <p className="mt-1 text-sm text-muted">Reports uploaded to this server. Open one to see its last analysis.</p>
+            <p className="mt-1 text-sm text-muted">Reports you uploaded from this browser. Open one to see its last analysis.</p>
 
             {sorted.length === 0 ? (
                 <div className="card mt-6 px-6 py-12 text-center">
                     <FileText className="mx-auto h-6 w-6 text-muted" aria-hidden />
                     <p className="mt-3 text-sm font-medium">No reports yet</p>
-                    <p className="mt-1 text-sm text-muted">Uploaded reports will appear here.</p>
+                    <p className="mt-1 text-sm text-muted">Reports you upload from this browser will appear here.</p>
                 </div>
             ) : (
                 <ul className="card mt-6 divide-y divide-line overflow-hidden">

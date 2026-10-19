@@ -4,6 +4,7 @@ ARIA backend smoke tests — run without real API keys or network LLM calls.
 Usage (from backend/):
     pytest tests/test_api.py
 """
+import hashlib
 import importlib
 import os
 import sys
@@ -30,9 +31,37 @@ def app_module(tmp_path_factory):
     return importlib.reload(main)
 
 
+WORKSPACE = "test-workspace-0000000001"
+OTHER_WORKSPACE = "test-workspace-0000000002"
+OWNER = hashlib.sha256(WORKSPACE.encode()).hexdigest()
+
+
+def workspace_client(app_module, workspace):
+    c = TestClient(app_module.app, raise_server_exceptions=False)
+    c.headers["X-Workspace-Id"] = workspace
+    return c
+
+
 @pytest.fixture(scope="module")
 def client(app_module):
-    return TestClient(app_module.app, raise_server_exceptions=False)
+    return workspace_client(app_module, WORKSPACE)
+
+
+@pytest.fixture(scope="module")
+def other_client(app_module):
+    return workspace_client(app_module, OTHER_WORKSPACE)
+
+
+def owned_doc(doc_id, **fields):
+    """A metadata record belonging to the default test workspace."""
+    return {"doc_id": doc_id, "owner": OWNER, "company": "Acme", "uploaded_at": "x", "chunks": 1, **fields}
+
+
+def tiny_pdf(text):
+    import fitz
+    doc = fitz.open()
+    doc.new_page().insert_text((50, 72), text)
+    return doc.tobytes()
 
 
 def upload(client, name, data):
@@ -69,10 +98,9 @@ def test_delete_disabled_without_admin_key(client):
 
 
 def test_document_list_hides_sensitive_fields(client, app_module):
-    app_module.doc_agent._save_metadata([{
-        "doc_id": "abcdef123456", "filename": "secret.pdf", "company": "Acme",
-        "uploaded_at": "2026-01-01T00:00:00", "chunks": 3, "preview": "confidential text",
-    }])
+    app_module.doc_agent._save_metadata([owned_doc(
+        "abcdef123456", filename="secret.pdf", uploaded_at="2026-01-01T00:00:00", chunks=3, preview="confidential text",
+    )])
     docs = client.get("/api/documents").json()
     assert docs == [{"doc_id": "abcdef123456", "company": "Acme", "uploaded_at": "2026-01-01T00:00:00", "chunks": 3}]
 
@@ -81,9 +109,41 @@ def test_analyze_unknown_document_is_404(client):
     assert client.get("/api/analyze/000000000000").status_code == 404
 
 
+# ── Private workspaces ──────────────────────────────────────────
+
+def test_requests_without_workspace_are_rejected(app_module):
+    anonymous = TestClient(app_module.app, raise_server_exceptions=False)
+    assert anonymous.get("/api/documents").status_code == 400
+    assert upload(anonymous, "a.pdf", tiny_pdf("Acme")).status_code == 400
+    bad = workspace_client(app_module, "short")
+    assert bad.get("/api/documents").status_code == 400
+
+
+def test_other_workspaces_cannot_see_or_use_a_document(client, other_client, app_module):
+    app_module.doc_agent._save_metadata([owned_doc("abcdef123456")])
+    assert len(client.get("/api/documents").json()) == 1
+    assert other_client.get("/api/documents").json() == []
+    for path in ["/api/analysis/abcdef123456", "/api/analyze/abcdef123456", "/api/report/abcdef123456"]:
+        assert other_client.get(path).status_code == 404, path
+    r = other_client.post("/api/query", json={"doc_id": "abcdef123456", "question": "What was revenue?"})
+    assert r.status_code == 404
+
+
+def test_same_file_in_two_workspaces_is_stored_separately(client, other_client, app_module):
+    app_module.doc_agent._save_metadata([])
+    pdf = tiny_pdf("Acme Widgets annual report. Revenue 1,200.")
+    first = upload(client, "acme.pdf", pdf).json()
+    second = upload(other_client, "acme.pdf", pdf).json()
+    assert first["doc_id"] != second["doc_id"]
+    assert [d["doc_id"] for d in client.get("/api/documents").json()] == [first["doc_id"]]
+    assert [d["doc_id"] for d in other_client.get("/api/documents").json()] == [second["doc_id"]]
+    assert "owner" not in client.get("/api/documents").json()[0]
+
+
 def test_saved_analysis(client, app_module):
     assert client.get("/api/analysis/0123456789ab").status_code == 404
     assert client.get("/api/analysis/..%2F..%2Fdocuments").status_code == 404
+    app_module.doc_agent._save_metadata([owned_doc("0123456789ab")])
     saved = {
         "doc_id": "0123456789ab", "company": "Acme", "overall_risk_score": 12, "rating": "Low Risk [STABLE]",
         "financial_signals": {"financial_risk_score": 5, "anomalies": [], "summary": "s"},
@@ -126,7 +186,7 @@ def test_statement_lookup_with_title_in_other_case(app_module):
 
 
 def test_internal_errors_are_not_shown_as_document_errors(client, app_module, monkeypatch):
-    app_module.doc_agent._save_metadata([{"doc_id": "0123456789ab", "company": "Acme", "uploaded_at": "x", "chunks": 1}])
+    app_module.doc_agent._save_metadata([owned_doc("0123456789ab")])
     def boom(doc_id):
         raise ValueError("substring not found")  # a bug, not a problem with the user's file
     monkeypatch.setattr(app_module.risk_agent, "analyze_financial_anomalies", boom)
@@ -150,6 +210,20 @@ def test_rate_limiter_blocks_after_limit():
 
 
 # ── LLM output validation ───────────────────────────────────────
+
+def test_llm_rate_limit_message_hides_groq_details(monkeypatch):
+    from services.groq_service import GroqService, LLMError
+    groq = GroqService()
+
+    def daily_limit(**kwargs):
+        raise Exception("Error code: 429 - Rate limit reached for model in organization org_01secret "
+                        "on tokens per day (TPD): Limit 200000, Used 199537")
+    monkeypatch.setattr(groq.client.chat.completions, "create", daily_limit)
+    with pytest.raises(LLMError) as err:
+        groq.ask("hi")
+    assert "daily usage limit" in str(err.value)
+    assert "org_" not in str(err.value) and "200000" not in str(err.value)
+
 
 def test_clamp_score():
     from services.groq_service import LLMError

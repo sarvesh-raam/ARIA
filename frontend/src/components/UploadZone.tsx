@@ -53,6 +53,10 @@ export default function UploadZone({ onFile, disabled }: { onFile: (file: File) 
                 <span className="mt-3 text-sm font-medium">Drop a PDF here or click to choose a file</span>
                 <span className="mt-1 text-xs text-muted">Text-based PDF, up to 25 MB</span>
             </label>
+            <p className="mt-3 text-xs leading-relaxed text-muted">
+                Your uploads are private to this browser and are deleted when the server restarts.
+                Avoid uploading highly sensitive documents to this demo.
+            </p>
 
             <ol className="mt-10 grid gap-6 sm:grid-cols-3">
                 {STEPS.map(([title, text], i) => (
