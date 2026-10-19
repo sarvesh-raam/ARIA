@@ -10,7 +10,6 @@ pymupdf==1.24.0               # PyMuPDF — fastest PDF text extractor
 numpy<2.0.0                   # CRITICAL: Lock to 1.x to avoid NumPy 2.0 breaking changes
 chromadb==0.4.24              # Updated for better stability
 sentence-transformers==2.3.1  # all-MiniLM-L6-v2 for local embeddings
-pysqlite3-binary              # Required for Linux (Hugging Face) stability
 
 # ── LLM ───────────────────────────────────────────────────────
 groq==0.9.0                   # Upgraded to fix HF proxy compatibility
@@ -22,6 +21,5 @@ pydantic==2.5.3               # Data validation (used by FastAPI)
 requests==2.31.0              # HTTP requests for NewsAPI
 
 # ── Phase 3: Agents & Reports ──────────────────────────────────
-langgraph==0.0.26             # Multi-agent orchestration
 fpdf2==2.7.8                  # Simple PDF generation
 sse-starlette==2.0.0          # SSE for progress tracking

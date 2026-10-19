@@ -24,6 +24,13 @@ export const api = {
         return response.data;
     },
 
+    // Round-trip time to the backend's health check, in ms (throws if unreachable)
+    ping: async () => {
+        const start = performance.now();
+        await axios.get(`${API_BASE_URL}/`, { timeout: 10000 });
+        return Math.round(performance.now() - start);
+    },
+
     listDocuments: async () => {
         const response = await axios.get(`${API_BASE_URL}/api/documents`);
         return response.data;
@@ -40,12 +47,6 @@ export const api = {
     analyzeDocument: async (docId: string) => {
         const response = await axios.get(`${API_BASE_URL}/api/analyze/${docId}`);
         return response.data;
-    },
-
-    fetchFiling: async (ticker: string) => {
-        const res = await fetch(`${API_BASE_URL}/api/fetch-filing/${ticker}`);
-        if (!res.ok) throw new Error("Failed to fetch filing");
-        return res.json();
     },
 
     getReportUrl: (docId: string) => `${API_BASE_URL}/api/report/${docId}`,

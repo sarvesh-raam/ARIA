@@ -6,21 +6,14 @@ import {
     Shield,
     Upload,
     FileText,
-    TrendingDown,
     AlertTriangle,
     CheckCircle,
     Globe,
-    Download,
     Loader2,
-    Search,
     History,
     Activity,
     Server,
     LayoutDashboard,
-    LogOut,
-    ChevronRight,
-    CircleDashed,
-    BarChart3,
     ArrowUpRight
 } from 'lucide-react';
 import { api, API_BASE_URL, getErrorMessage } from '@/lib/api';
@@ -34,9 +27,18 @@ export default function CorporateDashboard() {
     const [activeView, setActiveView] = useState<'dashboard' | 'history' | 'market'>('dashboard');
     const [error, setError] = useState<string | null>(null);
 
+    // null = not checked yet, -1 = unreachable, otherwise round-trip ms
+    const [latency, setLatency] = useState<number | null>(null);
+
     useEffect(() => {
         fetchHistory();
+        const checkBackend = () => api.ping().then(setLatency).catch(() => setLatency(-1));
+        checkBackend();
+        const timer = setInterval(checkBackend, 30000);
+        return () => clearInterval(timer);
     }, []);
+
+    const backendOnline = latency !== null && latency >= 0;
 
     const fetchHistory = async () => {
         try {
@@ -142,14 +144,12 @@ export default function CorporateDashboard() {
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center text-[10px]">
                                 <span className="text-slate-400">Node</span>
-                                <span className="text-brand font-bold">READY</span>
+                                <span className={`font-bold ${backendOnline ? 'text-brand' : latency === null ? 'text-slate-500' : 'text-risk-critical'}`}>
+                                    {latency === null ? 'CHECKING' : backendOnline ? 'ONLINE' : 'OFFLINE'}
+                                </span>
                             </div>
                         </div>
                     </div>
-                    <button className="nav-item w-full mt-4 text-slate-500 hover:text-red-400 flex justify-center lg:justify-start">
-                        <LogOut className="w-5 h-5 shrink-0" />
-                        <span className="hidden lg:block font-medium">Logout</span>
-                    </button>
                 </div>
             </aside>
 
@@ -170,7 +170,9 @@ export default function CorporateDashboard() {
                         <div className="hidden sm:flex items-center gap-6 px-4 py-2 bg-slate-900/50 rounded-lg border border-white/5 mr-4">
                             <div className="flex flex-col items-center">
                                 <span className="text-[9px] text-slate-500 uppercase font-black mb-0.5">Latency</span>
-                                <span className="text-xs font-bold text-brand">240ms</span>
+                                <span className={`text-xs font-bold ${latency === -1 ? 'text-risk-critical' : 'text-brand'}`}>
+                                    {latency === null ? '—' : latency === -1 ? 'Offline' : `${latency}ms`}
+                                </span>
                             </div>
                         </div>
 
@@ -295,7 +297,9 @@ export default function CorporateDashboard() {
                         ) : activeView === 'market' ? (
                             <div className="h-[60vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
                                 <Globe className="w-12 h-12 text-brand opacity-20" />
-                                <p className="text-slate-500 text-sm">Real-time market stream active.</p>
+                                <p className="text-slate-500 text-sm max-w-md">
+                                    Live market news is pulled for each audit. Run an audit to see its signals in the External Signals panel.
+                                </p>
                             </div>
                         ) : activeView === 'history' ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
