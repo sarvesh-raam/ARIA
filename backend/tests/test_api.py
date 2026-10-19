@@ -148,6 +148,44 @@ def test_news_search_name_strips_legal_suffixes():
     assert news_search_name("Infosys") == "Infosys"
 
 
+def test_cap_by_findings():
+    from services.validation import cap_by_findings
+    assert cap_by_findings(40, []) == 10            # no findings can't mean high risk
+    assert cap_by_findings(40, ["low", "low"]) == 20
+    assert cap_by_findings(40, ["low", "medium"]) == 35
+    assert cap_by_findings(40, ["high"]) == 40
+
+
+def test_news_top_stories_are_the_cited_articles(app_module, monkeypatch):
+    news = app_module.risk_agent.news_agent
+    articles = [
+        {"title": f"Story {i}", "url": f"https://news.example/{i}", "source": {"name": "Wire"},
+         "description": "", "publishedAt": "2026-10-01T00:00:00Z"}
+        for i in range(1, 5)
+    ]
+    monkeypatch.setattr(news, "search_news", lambda company: articles)
+    monkeypatch.setattr(news.groq, "ask_json", lambda prompt: {
+        "news_risk_score": 45, "summary": "s",
+        "signals": [{"signal": "Lawsuit", "impact": "medium", "description": "d", "articles": [3, 99, "x"]}],
+    })
+    report = news.get_risk_report("Acme")
+    assert [s["title"] for s in report["top_stories"]] == ["Story 3"]  # invalid article numbers ignored
+    assert report["news_risk_score"] == 35                              # capped: worst signal is medium
+    assert report["window_days"] == 30
+
+
+def test_overall_score_weights_financials_over_news(app_module, monkeypatch):
+    agent = app_module.risk_agent
+    agent.doc_agent._save_metadata([{"doc_id": "0123456789ab", "company": "Acme", "uploaded_at": "x", "chunks": 1}])
+    monkeypatch.setattr(agent, "analyze_financial_anomalies", lambda doc_id: {
+        "financial_risk_score": 50, "key_metrics": [], "anomalies": [], "summary": "s"})
+    monkeypatch.setattr(agent.news_agent, "get_risk_report", lambda company, context: {
+        "news_risk_score": 0, "summary": "s", "signals": []})
+    result = agent.run_full_analysis("0123456789ab")
+    assert result["overall_risk_score"] == 70
+    assert result["score_breakdown"] == {"financial": 70, "financial_max": 70, "news": 0, "news_max": 30}
+
+
 # ── PDF report ──────────────────────────────────────────────────
 
 def test_pdf_text_replaces_unsupported_characters():

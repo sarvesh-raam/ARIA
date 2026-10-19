@@ -3,6 +3,9 @@ import re
 from services.groq_service import LLMError
 
 SEVERITY_LEVELS = ("high", "medium", "low")
+SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3}
+# Highest 0-50 score allowed given the worst finding (0 = none) — matches the rubrics in the prompts
+SCORE_CAP_BY_WORST_SEVERITY = {0: 10, 1: 20, 2: 35, 3: 50}
 
 
 def clamp_score(value, low: int = 0, high: int = 50) -> int:
@@ -12,6 +15,12 @@ def clamp_score(value, low: int = 0, high: int = 50) -> int:
     except (TypeError, ValueError):
         raise LLMError(f"LLM returned a non-numeric score: {value!r}")
     return max(low, min(high, score))
+
+
+def cap_by_findings(score: int, levels: list[str]) -> int:
+    """Keep an LLM score consistent with its own findings: no findings can't mean high risk."""
+    worst = max((SEVERITY_RANK.get(level, 0) for level in levels), default=0)
+    return min(score, SCORE_CAP_BY_WORST_SEVERITY[worst])
 
 
 def normalize_level(value) -> str:

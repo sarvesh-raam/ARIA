@@ -7,7 +7,7 @@ from agents.document_agent import DocumentAgent
 from agents.news_agent import NewsAgent
 from agents.report_agent import ReportAgent
 from services.groq_service import GroqService
-from services.validation import clamp_score, normalize_level, require_list_of_dicts, unsupported_figures
+from services.validation import cap_by_findings, clamp_score, normalize_level, require_list_of_dicts, unsupported_figures
 
 # Titles of the three core statements, as US (10-K/10-Q) and Indian (Ind AS) reports write them.
 # Matched case-sensitively, so list the usual capitalizations.
@@ -30,9 +30,10 @@ FINANCIAL_SEARCH_QUERIES = [
 
 MAX_CONTEXT_CHUNKS = 14  # ~14k characters of excerpts
 
-SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3}
-# Highest financial score allowed for the worst anomaly found (0 = none), matching the prompt's rubric
-SCORE_CAP_BY_WORST_SEVERITY = {0: 10, 1: 20, 2: 35, 3: 50}
+# Weight of each 0-50 sub-score in the 0-100 overall score. The document is audited evidence;
+# 30 days of headlines are context, so they count for less.
+FINANCIAL_WEIGHT = 70
+NEWS_WEIGHT = 30
 
 
 class RiskAgent:
@@ -118,7 +119,8 @@ Rules:
 - An anomaly is an ADVERSE change only: e.g. falling revenue or profit, shrinking margins, rising
   leverage, negative or falling operating cash flow, losses, impairments, going-concern or default warnings.
 - Improvements are NOT anomalies: higher revenue or profit, lower debt, debt repayment, rising cash.
-  For debt and liabilities a DECREASE is favorable.
+  For debt and liabilities a DECREASE is favorable. Negative investing cash flow (capital spending,
+  buying securities) is normal for a healthy company, not an anomaly.
 - Copy figures exactly as written in the excerpts (e.g. "$12,350M", not "$12.35B"); never invent numbers.
   If a metric isn't in the excerpts, leave it out.
 - Report line items as stated. Don't add line items together to make your own totals (e.g. "total debt").
@@ -165,9 +167,7 @@ Output valid JSON only:
             if str(a.get("direction", "adverse")).strip().lower() != "favorable"
         ]
         anomalies = [a for a in anomalies if grounded(a, a["observation"])]
-        # Keep the score consistent with the findings (see rubric): no anomalies can't mean high risk
-        worst = max((SEVERITY_RANK[a["severity"]] for a in anomalies), default=0)
-        score = min(clamp_score(data.get("financial_risk_score")), SCORE_CAP_BY_WORST_SEVERITY[worst])
+        score = cap_by_findings(clamp_score(data.get("financial_risk_score")), [a["severity"] for a in anomalies])
         return {
             "financial_risk_score": score,
             "key_metrics": [m for m in key_metrics if grounded(m, f"{m['current']} {m['prior']}")],
@@ -199,14 +199,19 @@ Output valid JSON only:
 
         # 2. News Analysis
         if progress_callback: progress_callback(60, f"Searching live news for {company_name}...")
-        news_analysis = self.news_agent.get_risk_report(company_name)
+        # Give the news analyst the company's scale so it can judge how material each story is
+        company_context = "\n".join(
+            [financial_analysis["summary"]]
+            + [f"{m['metric']}: {m['current']} (prior {m['prior']})" for m in financial_analysis["key_metrics"]]
+        )
+        news_analysis = self.news_agent.get_risk_report(company_name, company_context)
 
         # 3. Final Fusion & Scoring
         if progress_callback: progress_callback(85, "Fusing signals and calculating ARIA score...")
-        # Calculation: Financial Score (0-50) + News Score (0-50)
-        f_score = financial_analysis.get("financial_risk_score", 0)
-        n_score = news_analysis.get("news_risk_score", 0)
-        total_score = f_score + n_score
+        # Each sub-score is 0-50; weight them into a 0-100 overall score
+        f_points = round(financial_analysis["financial_risk_score"] / 50 * FINANCIAL_WEIGHT)
+        n_points = round(news_analysis["news_risk_score"] / 50 * NEWS_WEIGHT)
+        total_score = f_points + n_points
 
         # Determine overall rating
         rating = "Low Risk [STABLE]"
@@ -218,6 +223,10 @@ Output valid JSON only:
             "company": company_name,
             "overall_risk_score": total_score,
             "rating": rating,
+            "score_breakdown": {
+                "financial": f_points, "financial_max": FINANCIAL_WEIGHT,
+                "news": n_points, "news_max": NEWS_WEIGHT,
+            },
             "financial_signals": financial_analysis,
             "news_signals": news_analysis,
             "timestamp": datetime.now().isoformat(),
