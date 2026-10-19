@@ -71,13 +71,23 @@ class GroqService:
                     extra_body=extra_body,
                 )
             except Exception as e:
-                # Handle rate limiting (429) specifically
-                if "429" in str(e) and attempt < retries - 1:
-                    print(f"[Groq] Rate limit hit. Retrying in {backoff}s... (Attempt {attempt+1})")
-                    time.sleep(backoff)
-                    backoff *= 2
-                    continue
-                raise LLMError(f"Could not get response from LLM: {e}") from e
+                # Groq's error text includes the organization ID and limits — log it, don't show it to users
+                message = str(e)
+                if "429" in message:
+                    daily = "per day" in message
+                    # Per-minute limits clear quickly; retrying a daily limit only delays the error
+                    if not daily and attempt < retries - 1:
+                        print(f"[Groq] Rate limit hit. Retrying in {backoff}s... (Attempt {attempt+1})")
+                        time.sleep(backoff)
+                        backoff *= 2
+                        continue
+                    print(f"[Groq] Rate limited: {message}")
+                    raise LLMError(
+                        "The AI service has reached its daily usage limit. Please try again later."
+                        if daily else "The AI service is busy right now. Please try again in a minute."
+                    ) from e
+                print(f"[Groq] Request failed: {message}")
+                raise LLMError("Could not get a response from the AI service.") from e
 
             content = (response.choices[0].message.content or "").strip()
             if not content:
