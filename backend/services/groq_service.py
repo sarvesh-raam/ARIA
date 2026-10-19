@@ -8,11 +8,14 @@ load_dotenv()
 class GroqService:
     """
     Wrapper around the Groq API.
-    Groq provides FREE, blazing-fast inference on Llama-3 70B.
+    Groq provides FREE, blazing-fast inference on open-weight models.
     Get your key at: https://console.groq.com
     """
 
-    MODEL = "llama-3.3-70b-versatile"   # Latest Groq model (free tier)
+    # Override with GROQ_MODEL if Groq retires this model
+    MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+    # gpt-oss models spend output tokens on reasoning; keep it low so short answers aren't cut off
+    REASONING_EFFORT = os.getenv("GROQ_REASONING_EFFORT", "low")
 
     def __init__(self):
         api_key = os.getenv("GROQ_API_KEY")
@@ -32,12 +35,13 @@ class GroqService:
 
     def ask(self, prompt: str, max_tokens: int = 1024) -> str:
         """
-        Send a prompt to Groq's Llama-3 70B and return the response text.
+        Send a prompt to the configured Groq model and return the response text.
         Includes a retry-mechanism to handle rate limiting (429) gracefully.
         """
         import time
         retries = 3
         backoff = 2 # seconds
+        extra_body = {"reasoning_effort": self.REASONING_EFFORT} if self.MODEL.startswith("openai/gpt-oss") else {}
 
         for attempt in range(retries):
             try:
@@ -56,6 +60,7 @@ class GroqService:
                     ],
                     max_tokens=max_tokens,
                     temperature=0.1,
+                    extra_body=extra_body,
                 )
                 return response.choices[0].message.content.strip()
             except Exception as e:

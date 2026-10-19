@@ -76,7 +76,8 @@ class DocumentAgent:
             "From the following document excerpt, extract ONLY the company name "
             "(no explanation, no punctuation, just the name):\n\n" + snippet
         )
-        name = self.groq.ask(prompt, max_tokens=30).strip()
+        # Headroom for the model's reasoning tokens; the length check below still guards the answer
+        name = self.groq.ask(prompt, max_tokens=150).strip()
         # If the LLM returns something too long it probably failed
         return name if len(name) < 80 else filename.replace(".pdf", "")
 
