@@ -48,7 +48,7 @@ graph LR
 </details>
 
 ## System Architecture & Components
-- **Frontend**: Next.js 15 dashboard with live progress updates via Server-Sent Events (SSE), internal and external signal panels, and a live backend status indicator.
+- **Frontend**: Next.js 15 dashboard (light and dark themes) with live progress via Server-Sent Events (SSE), a score breakdown, key metrics, news signals with sources, Q&A on the uploaded report, and a history of past analyses.
 - **Backend API**: Python FastAPI layer handling uploads, orchestration, validation and rate limiting.
 - **RAG Pipeline**: PyMuPDF text extraction, overlapping chunks, and ChromaDB with `all-MiniLM-L6-v2` sentence-transformer embeddings.
 - **LLM**: Groq-hosted `openai/gpt-oss-120b` by default (configurable), using JSON mode for structured output that is validated before use.
@@ -58,7 +58,7 @@ graph LR
 ## API Flow
 1. **Upload (`POST /api/upload`)**: The PDF is validated (type, size, readable, not password-protected), chunked, embedded into ChromaDB, and the company name is identified. Re-uploading a known document repairs anything that failed the first time.
 2. **Progress (`GET /api/progress/{id}`)**: An SSE stream reports each step while uploads and analyses run.
-3. **Analysis (`GET /api/analyze/{doc_id}`)**: The backend retrieves the most relevant chunks, the LLM extracts financial anomalies (0-50), NewsAPI results are scored (0-50), and the two are combined into the overall score.
+3. **Analysis (`GET /api/analyze/{doc_id}`)**: The backend locates the income statement, balance sheet and cash flow statement plus other relevant passages, and the LLM extracts key metrics and adverse changes (financial score 0-50). Any figure the LLM quotes that isn't in the document is discarded. Recent news is scored for material risks relative to the company's size (news score 0-50). The overall score weights the document 70% and news 30%.
 4. **Report (`GET /api/report/{doc_id}`)**: Downloads a PDF built from the saved analysis.
 5. **Q&A (`POST /api/query`)**: Ask any question about an uploaded document.
 
@@ -68,7 +68,7 @@ graph LR
 | 41-70 | Medium Risk [ELEVATED] |
 | 71-100 | Critical Risk [CRITICAL] |
 
-Other endpoints: `GET /api/documents` (list; filenames and previews only with the admin key) and `DELETE /api/documents/{doc_id}` (admin key required).
+Other endpoints: `GET /api/analysis/{doc_id}` (last saved analysis, no LLM call), `GET /api/documents` (list; filenames and previews only with the admin key) and `DELETE /api/documents/{doc_id}` (admin key required).
 
 ## Example Output Payload
 `GET /api/analyze/{doc_id}`:
@@ -78,8 +78,12 @@ Other endpoints: `GET /api/documents` (list; filenames and previews only with th
   "company": "NVIDIA Corporation",
   "overall_risk_score": 34,
   "rating": "Low Risk [STABLE]",
+  "score_breakdown": { "financial": 14, "financial_max": 70, "news": 20, "news_max": 30 },
   "financial_signals": {
     "financial_risk_score": 10,
+    "key_metrics": [
+      { "metric": "Revenue", "current": "$130,497M (FY2025)", "prior": "$60,922M (FY2024)", "change": "+114%" }
+    ],
     "anomalies": [
       {
         "metric": "Gross Margin",
@@ -90,7 +94,7 @@ Other endpoints: `GET /api/documents` (list; filenames and previews only with th
     "summary": "Revenue surged while debt stayed flat; only modest gross-margin compression."
   },
   "news_signals": {
-    "news_risk_score": 24,
+    "news_risk_score": 33,
     "summary": "Recent news highlights a large stock buyback alongside emerging legal and political exposure.",
     "signals": [
       {
@@ -102,7 +106,8 @@ Other endpoints: `GET /api/documents` (list; filenames and previews only with th
     "top_stories": [
       { "title": "Nvidia unveils record $150 billion stock buyback plan", "url": "https://...", "source": "Yahoo" }
     ],
-    "available": true
+    "available": true,
+    "window_days": 30
   },
   "timestamp": "2026-10-19T22:52:08.112345"
 }

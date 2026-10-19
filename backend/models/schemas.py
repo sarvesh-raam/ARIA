@@ -46,6 +46,7 @@ class RiskSignal(BaseModel):
 
 class FinancialAnalysis(BaseModel):
     financial_risk_score: int
+    key_metrics: list[dict] = []
     anomalies: list[dict]
     summary: str
 
@@ -56,6 +57,7 @@ class NewsAnalysis(BaseModel):
     signals: list[RiskSignal]
     top_stories: Optional[list[dict]] = None
     available: bool = True  # False when news could not be fetched
+    window_days: Optional[int] = None
 
 
 class RiskReport(BaseModel):
@@ -63,6 +65,7 @@ class RiskReport(BaseModel):
     company: str
     overall_risk_score: int
     rating: str
+    score_breakdown: Optional[dict] = None
     financial_signals: FinancialAnalysis
     news_signals: NewsAnalysis
     timestamp: str

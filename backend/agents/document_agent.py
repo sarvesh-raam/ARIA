@@ -1,11 +1,20 @@
 import fitz  # PyMuPDF
 import hashlib
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
 from services.chroma_service import ChromaService
 from services.groq_service import GroqService, LLMError
+
+
+def plain_text(answer: str) -> str:
+    """Strip the markdown and 【citation】 markers gpt-oss adds even when asked not to."""
+    answer = re.sub(r"【[^】]*】", "", answer)
+    answer = re.sub(r"\*\*(.+?)\*\*", r"\1", answer)
+    answer = re.sub(r"^#{1,6}\s+", "", answer, flags=re.MULTILINE)
+    return re.sub(r"[ \t]+\n", "\n", answer).strip()
 
 
 class DocumentAgent:
@@ -220,6 +229,7 @@ class DocumentAgent:
         prompt = f"""You are ARIA, an expert AI financial analyst.
 Your job: answer the user's question based ONLY on the document excerpts below.
 Be factual, concise, and professional. Cite specific numbers where available.
+Answer in plain text: no markdown, no bold, no citation markers.
 If the answer is not in the excerpts, say: "This information is not available in the provided document."
 
 DOCUMENT EXCERPTS:
@@ -229,7 +239,7 @@ QUESTION: {question}
 
 ANSWER:"""
 
-        answer = self.groq.ask(prompt, max_tokens=1024)
+        answer = plain_text(self.groq.ask(prompt, max_tokens=1024))
 
         return {
             "answer": answer,

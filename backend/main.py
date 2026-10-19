@@ -191,6 +191,18 @@ async def delete_document(doc_id: str):
 
 
 # ─────────────────────────────────────────────
+#  SAVED ANALYSIS (no LLM call — used to reopen past audits)
+# ─────────────────────────────────────────────
+@app.get("/api/analysis/{doc_id}", response_model=RiskReport)
+async def get_saved_analysis(doc_id: str):
+    """Return the last analysis for a document, or 404 if it has never been analyzed."""
+    analysis = risk_agent.load_analysis(doc_id)
+    if analysis is None:
+        raise HTTPException(status_code=404, detail="No saved analysis for this document. Run a new analysis.")
+    return analysis
+
+
+# ─────────────────────────────────────────────
 #  FULL RISK ANALYSIS (Phase 2)
 # ─────────────────────────────────────────────
 @app.get("/api/analyze/{doc_id}", response_model=RiskReport, dependencies=[Depends(ai_rate_limit)])

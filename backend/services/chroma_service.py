@@ -68,6 +68,30 @@ class ChromaService:
             # Lite Mode: Return the first few lines of the document as a "simulation"
             return self.mock_db.get(doc_id, ["(Simulation) Document intelligence is active. No local vector DB found."])[:n_results]
 
+    def find_containing(self, doc_id: str, phrase: str) -> dict[int, str]:
+        """Exact-text lookup: {chunk_index: text} for every chunk containing `phrase` (case-sensitive)."""
+        if CHROMA_AVAILABLE:
+            try:
+                results = self._get_collection(doc_id).get(
+                    where_document={"$contains": phrase}, include=["documents", "metadatas"]
+                )
+                return {m["chunk_index"]: t for m, t in zip(results["metadatas"], results["documents"])}
+            except Exception as e:
+                print(f"[ChromaService] Text lookup error: {e}")
+                return {}
+        return {i: t for i, t in enumerate(self.mock_db.get(doc_id, [])) if phrase in t}
+
+    def get_chunk(self, doc_id: str, index: int):
+        """Text of one chunk by position, or None if it doesn't exist."""
+        if CHROMA_AVAILABLE:
+            try:
+                results = self._get_collection(doc_id).get(ids=[f"{doc_id}_chunk_{index}"])
+                return results["documents"][0] if results["documents"] else None
+            except Exception:
+                return None
+        chunks = self.mock_db.get(doc_id, [])
+        return chunks[index] if 0 <= index < len(chunks) else None
+
     def count(self, doc_id: str) -> int:
         """Number of stored chunks for a document (0 if it has none)."""
         if CHROMA_AVAILABLE:

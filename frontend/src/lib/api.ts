@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { DocumentSummary, QueryAnswer, RiskReport } from './types';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -13,8 +14,10 @@ export const getErrorMessage = (err: unknown): string => {
     return 'Something went wrong. Please try again.';
 };
 
+export const isNotFound = (err: unknown) => axios.isAxiosError(err) && err.response?.status === 404;
+
 export const api = {
-    uploadDocument: async (file: File, taskId?: string) => {
+    uploadDocument: async (file: File, taskId?: string): Promise<{ doc_id: string; company?: string; status: string }> => {
         const formData = new FormData();
         formData.append('file', file);
         const url = taskId ? `${API_BASE_URL}/api/upload?task_id=${taskId}` : `${API_BASE_URL}/api/upload`;
@@ -31,12 +34,12 @@ export const api = {
         return Math.round(performance.now() - start);
     },
 
-    listDocuments: async () => {
+    listDocuments: async (): Promise<DocumentSummary[]> => {
         const response = await axios.get(`${API_BASE_URL}/api/documents`);
         return response.data;
     },
 
-    queryDocument: async (docId: string, question: string) => {
+    queryDocument: async (docId: string, question: string): Promise<QueryAnswer> => {
         const response = await axios.post(`${API_BASE_URL}/api/query`, {
             doc_id: docId,
             question: question,
@@ -44,13 +47,17 @@ export const api = {
         return response.data;
     },
 
-    analyzeDocument: async (docId: string) => {
+    // Runs a new analysis (LLM + news)
+    analyzeDocument: async (docId: string): Promise<RiskReport> => {
         const response = await axios.get(`${API_BASE_URL}/api/analyze/${docId}`);
         return response.data;
     },
 
-    getReportUrl: (docId: string) => `${API_BASE_URL}/api/report/${docId}`,
-    downloadReport: (docId: string) => {
-        window.open(`${API_BASE_URL}/api/report/${docId}`, '_blank');
-    }
+    // Last saved analysis, no LLM call; 404 if the document was never analyzed
+    getAnalysis: async (docId: string): Promise<RiskReport> => {
+        const response = await axios.get(`${API_BASE_URL}/api/analysis/${docId}`);
+        return response.data;
+    },
+
+    reportUrl: (docId: string) => `${API_BASE_URL}/api/report/${docId}`,
 };
