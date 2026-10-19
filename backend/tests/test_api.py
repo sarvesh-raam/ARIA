@@ -85,6 +85,20 @@ def test_report_rejects_path_traversal(client):
     assert client.get("/api/report/..%2F..%2Fdocuments").status_code == 404
 
 
+def test_statement_lookup_skips_table_of_contents(app_module):
+    agent = app_module.risk_agent
+    doc_id = "feedfacecafe"
+    agent.doc_agent.chroma.add_chunks(doc_id, [
+        "Index: Consolidated Statements of Operations ... page 28. Consolidated Balance Sheets ... page 29.",
+        "Management discussion. Revenue grew due to strong demand.",
+        "CONSOLIDATED Statements of Operations (In millions) Net sales 416,161 391,035 Net income 112,010 93,736",
+        "Earnings per share 7.49 6.11 Diluted 7.46 6.08",
+    ])
+    found = agent._statement_chunks(doc_id, ["Statements of Operations"])
+    assert found[0].startswith("CONSOLIDATED Statements of Operations")
+    assert found[1].startswith("Earnings per share")  # the statement continues in the next chunk
+
+
 # ── Security helpers ────────────────────────────────────────────
 
 def test_rate_limiter_blocks_after_limit():
@@ -110,6 +124,14 @@ def test_clamp_score():
     assert clamp_score(-5) == 0
     with pytest.raises(LLMError):
         clamp_score("high")
+
+
+def test_unsupported_figures_catches_invented_numbers():
+    from services.validation import unsupported_figures
+    source = "Net sales 143,756 124,300 Commercial paper 1,997 7,979 EPS 2.84"
+    assert unsupported_figures("$143,756M vs $124,300M (+15.6%) in 2025, EPS 2.84", source) == []
+    assert unsupported_figures("Total debt $13,822M", source) == ["13,822"]  # self-computed total
+    assert unsupported_figures("$13.8B", source) == ["13.8"]                 # reformatted figure
 
 
 def test_normalize_level():

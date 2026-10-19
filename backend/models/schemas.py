@@ -46,6 +46,7 @@ class RiskSignal(BaseModel):
 
 class FinancialAnalysis(BaseModel):
     financial_risk_score: int
+    key_metrics: list[dict] = []
     anomalies: list[dict]
     summary: str
 
