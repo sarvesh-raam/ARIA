@@ -1,7 +1,32 @@
 from fpdf import FPDF
 from datetime import datetime
-import os
 from pathlib import Path
+import re
+import unicodedata
+
+# Characters the built-in PDF fonts (latin-1) can't draw, mapped to readable equivalents
+PDF_REPLACEMENTS = {
+    "🟢": "[LOW]", "🟡": "[MEDIUM]", "🔴": "[CRITICAL]", "•": "*",
+    "™": "(TM)", "—": "--", "–": "-", "\u2011": "-", "\u2010": "-",
+    "₹": "Rs.", "€": "EUR", "‘": "'", "’": "'", "“": '"', "”": '"', "…": "...",
+    "\u202f": " ", "\u2009": " ", "\u200b": "", "【": "[", "】": "]",
+}
+
+
+def to_pdf_text(text: str) -> str:
+    """Make text safe for the built-in latin-1 PDF fonts without losing meaning."""
+    for char, safe_text in PDF_REPLACEMENTS.items():
+        text = text.replace(char, safe_text)
+    # Decompose remaining characters (e.g. ligatures) and replace anything still unsupported
+    text = unicodedata.normalize("NFKC", text)
+    return text.encode("latin-1", "replace").decode("latin-1")
+
+
+class SafeFPDF(FPDF):
+    """FPDF that sanitizes every piece of text, so a stray character can't crash the report."""
+
+    def normalize_text(self, text):
+        return super().normalize_text(to_pdf_text(text))
 
 class ReportAgent:
     """
@@ -19,17 +44,7 @@ class ReportAgent:
     def _sanitize(self, text: str) -> str:
         """Replace emojis and non-latin characters that standard PDF fonts can't handle."""
         if not text: return "N/A"
-        # Map some common emojis to safe text equivalents
-        replacements = {
-            "🟢": "[LOW]", "🟡": "[MEDIUM]", "🔴": "[CRITICAL]", "•": "*",
-            "©": "(c)", "®": "(r)", "™": "(TM)", "—": "--", "–": "-"
-        }
-        for emoji, safe_text in replacements.items():
-            text = text.replace(emoji, safe_text)
-            
-        # FORCE REMOVE all non-Latin1 characters to prevent Helvetica range errors
-        # This is a bulletproof way to ensure the PDF generator never crashes
-        return text.encode('latin-1', 'ignore').decode('latin-1')
+        return to_pdf_text(str(text))
 
     def generate_pdf_report(self, report_data: dict) -> str:
         """
@@ -40,7 +55,7 @@ class ReportAgent:
         rating = self._sanitize(report_data.get("rating", "Unknown"))
         doc_id = report_data.get("doc_id", "Unknown")
         
-        pdf = FPDF()
+        pdf = SafeFPDF()
         pdf.add_page()
         pdf.set_margins(15, 15, 15)
         
@@ -179,7 +194,11 @@ class ReportAgent:
         pdf.cell(180, 5, "THIS IS AN AI-GENERATED AUDIT PARA-ADVISORY ONLY. VERIFY DATA INDEPENDENTLY.", ln=True, align='C')
 
         # --- Save File ---
-        filename = f"ARIA_Report_{company}_{doc_id}.pdf".replace(" ", "_")
+        # Company names come from the LLM and may contain "/", ":" etc. — keep the filename path-safe
+        ascii_company = unicodedata.normalize("NFKD", company).encode("ascii", "ignore").decode()
+        safe_company = re.sub(r"[^A-Za-z0-9_-]+", "_", ascii_company).strip("_") or "Company"
+        safe_doc_id = re.sub(r"[^A-Za-z0-9_-]+", "_", str(doc_id))
+        filename = f"ARIA_Report_{safe_company}_{safe_doc_id}.pdf"
         file_path = self.output_dir / filename
         pdf.output(str(file_path))
         

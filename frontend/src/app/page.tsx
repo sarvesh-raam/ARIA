@@ -6,24 +6,17 @@ import {
     Shield,
     Upload,
     FileText,
-    TrendingDown,
     AlertTriangle,
     CheckCircle,
     Globe,
-    Download,
     Loader2,
-    Search,
     History,
     Activity,
     Server,
     LayoutDashboard,
-    LogOut,
-    ChevronRight,
-    CircleDashed,
-    BarChart3,
     ArrowUpRight
 } from 'lucide-react';
-import { api, API_BASE_URL } from '@/lib/api';
+import { api, API_BASE_URL, getErrorMessage } from '@/lib/api';
 
 export default function CorporateDashboard() {
     const [loading, setLoading] = useState(false);
@@ -32,10 +25,20 @@ export default function CorporateDashboard() {
     const [report, setReport] = useState<any>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [activeView, setActiveView] = useState<'dashboard' | 'history' | 'market'>('dashboard');
+    const [error, setError] = useState<string | null>(null);
+
+    // null = not checked yet, -1 = unreachable, otherwise round-trip ms
+    const [latency, setLatency] = useState<number | null>(null);
 
     useEffect(() => {
         fetchHistory();
+        const checkBackend = () => api.ping().then(setLatency).catch(() => setLatency(-1));
+        checkBackend();
+        const timer = setInterval(checkBackend, 30000);
+        return () => clearInterval(timer);
     }, []);
+
+    const backendOnline = latency !== null && latency >= 0;
 
     const fetchHistory = async () => {
         try {
@@ -46,43 +49,50 @@ export default function CorporateDashboard() {
         }
     };
 
+    // Follow a backend task's progress; closes itself at 100% or if the stream errors
+    const trackProgress = (progressId: string) => {
+        const source = new EventSource(`${API_BASE_URL}/api/progress/${progressId}`);
+        source.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            setProgress(data.percentage);
+            setStatus(data.status);
+            if (data.percentage >= 100) source.close();
+        };
+        source.onerror = () => source.close();
+        return source;
+    };
+
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selected = e.target.files?.[0];
+        // Reset so choosing the same file again still triggers onChange
+        e.target.value = "";
         if (!selected) return;
 
         setLoading(true);
         setReport(null);
+        setError(null);
+        setActiveView('dashboard');
         setProgress(0);
+        const sources: EventSource[] = [];
         try {
             setStatus("Initializing Neural Audit...");
             const tempTaskId = "task_" + Math.random().toString(36).substring(7);
-
-            const eventSource = new EventSource(`${API_BASE_URL}/api/progress/${tempTaskId}`);
-            eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                setProgress(data.percentage);
-                setStatus(data.status);
-            };
+            sources.push(trackProgress(tempTaskId));
 
             const uploadRes = await api.uploadDocument(selected, tempTaskId);
             const docId = uploadRes.doc_id;
 
-            eventSource.close();
-            const analysisSource = new EventSource(`${API_BASE_URL}/api/progress/${docId}`);
-            analysisSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                setProgress(data.percentage);
-                setStatus(data.status);
-                if (data.percentage >= 100) analysisSource.close();
-            };
+            sources.forEach((s) => s.close());
+            sources.push(trackProgress(docId));
 
             const analysisRes = await api.analyzeDocument(docId);
             setReport(analysisRes);
             fetchHistory();
-            analysisSource.close();
         } catch (err) {
             console.error(err);
+            setError(getErrorMessage(err));
         } finally {
+            sources.forEach((s) => s.close());
             setLoading(false);
             setStatus("");
         }
@@ -134,14 +144,12 @@ export default function CorporateDashboard() {
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center text-[10px]">
                                 <span className="text-slate-400">Node</span>
-                                <span className="text-brand font-bold">READY</span>
+                                <span className={`font-bold ${backendOnline ? 'text-brand' : latency === null ? 'text-slate-500' : 'text-risk-critical'}`}>
+                                    {latency === null ? 'CHECKING' : backendOnline ? 'ONLINE' : 'OFFLINE'}
+                                </span>
                             </div>
                         </div>
                     </div>
-                    <button className="nav-item w-full mt-4 text-slate-500 hover:text-red-400 flex justify-center lg:justify-start">
-                        <LogOut className="w-5 h-5 shrink-0" />
-                        <span className="hidden lg:block font-medium">Logout</span>
-                    </button>
                 </div>
             </aside>
 
@@ -162,7 +170,9 @@ export default function CorporateDashboard() {
                         <div className="hidden sm:flex items-center gap-6 px-4 py-2 bg-slate-900/50 rounded-lg border border-white/5 mr-4">
                             <div className="flex flex-col items-center">
                                 <span className="text-[9px] text-slate-500 uppercase font-black mb-0.5">Latency</span>
-                                <span className="text-xs font-bold text-brand">240ms</span>
+                                <span className={`text-xs font-bold ${latency === -1 ? 'text-risk-critical' : 'text-brand'}`}>
+                                    {latency === null ? '—' : latency === -1 ? 'Offline' : `${latency}ms`}
+                                </span>
                             </div>
                         </div>
 
@@ -177,6 +187,18 @@ export default function CorporateDashboard() {
 
                 {/* Dashboard Content */}
                 <div className="flex-1 overflow-y-auto p-4 lg:p-8 relative">
+                    {error && !loading && (
+                        <div role="alert" className="mb-6 glass-card border border-risk-critical/40 bg-risk-critical/10 p-4 flex items-start gap-3">
+                            <AlertTriangle className="w-5 h-5 text-risk-critical shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                                <h4 className="text-sm font-bold text-white">Audit failed</h4>
+                                <p className="text-xs text-slate-300 leading-relaxed">{error}</p>
+                            </div>
+                            <button onClick={() => setError(null)} className="text-[10px] font-black uppercase text-slate-400 hover:text-white">
+                                Dismiss
+                            </button>
+                        </div>
+                    )}
                     <AnimatePresence mode="wait">
                         {loading ? (
                             <motion.div 
@@ -209,7 +231,7 @@ export default function CorporateDashboard() {
                                         <div className="flex-1 text-center lg:text-left">
                                             <h4 className="font-display text-xl lg:text-2xl text-slate-200 mb-2">Narrative</h4>
                                             <p className="text-slate-400 text-xs lg:text-sm leading-relaxed mb-4">
-                                                Risk profile determined as **{report.rating}** based on forensic audit fusion.
+                                                Risk profile determined as <span className="font-bold text-white">{report.rating}</span> based on forensic audit fusion.
                                             </p>
                                             <button onClick={() => api.downloadReport(report.doc_id)} className="btn-primary w-full lg:w-auto text-[10px] font-bold">
                                                 DOWNLOAD PDF
@@ -223,27 +245,67 @@ export default function CorporateDashboard() {
                                         <h3 className="font-display text-lg text-white flex items-center gap-2">
                                             <FileText className="w-4 h-4 text-brand" /> Internal Signals
                                         </h3>
+                                        <p className="text-xs text-slate-400 leading-relaxed">{report.financial_signals?.summary}</p>
                                         <div className="grid gap-4">
-                                            {report.financial_signals.anomalies.map((anom: any, i: number) => (
+                                            {(report.financial_signals?.anomalies ?? []).length === 0 ? (
+                                                <div className="glass-card p-4 flex items-center gap-2 text-xs text-risk-stable">
+                                                    <CheckCircle className="w-4 h-4" /> No financial anomalies detected.
+                                                </div>
+                                            ) : report.financial_signals.anomalies.map((anom: any, i: number) => (
                                                 <div key={i} className="glass-card p-4 border-l-2 border-brand">
-                                                    <h5 className="text-[10px] font-black text-brand uppercase mb-1">{anom.metric}</h5>
+                                                    <h5 className="text-[10px] font-black text-brand uppercase mb-1">
+                                                        {anom.metric} <span className="text-slate-500">· {anom.severity}</span>
+                                                    </h5>
                                                     <p className="text-xs text-white leading-relaxed">{anom.observation}</p>
                                                 </div>
                                             ))}
                                         </div>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <h3 className="font-display text-lg text-white flex items-center gap-2">
+                                            <Globe className="w-4 h-4 text-brand" /> External Signals
+                                        </h3>
+                                        <p className="text-xs text-slate-400 leading-relaxed">{report.news_signals?.summary}</p>
+                                        {report.news_signals?.available === false ? (
+                                            <div className="glass-card p-4 flex items-center gap-2 text-xs text-risk-elevated">
+                                                <AlertTriangle className="w-4 h-4 shrink-0" /> Live news was unavailable, so this score is based on the document only.
+                                            </div>
+                                        ) : (
+                                            <div className="grid gap-4">
+                                                {(report.news_signals?.signals ?? []).map((sig: any, i: number) => (
+                                                    <div key={i} className="glass-card p-4 border-l-2 border-brand">
+                                                        <h5 className="text-[10px] font-black text-brand uppercase mb-1">
+                                                            {sig.signal} <span className="text-slate-500">· {sig.impact}</span>
+                                                        </h5>
+                                                        <p className="text-xs text-white leading-relaxed">{sig.description}</p>
+                                                    </div>
+                                                ))}
+                                                {(report.news_signals?.top_stories ?? []).map((story: any, i: number) => (
+                                                    <a key={`story-${i}`} href={story.url} target="_blank" rel="noopener noreferrer"
+                                                        className="glass-card p-3 flex items-center justify-between gap-3 text-xs text-slate-300 hover:text-white hover:border-brand transition-all">
+                                                        <span className="truncate">{story.title}</span>
+                                                        <span className="flex items-center gap-1 shrink-0 text-[10px] text-slate-500">
+                                                            {story.source} <ArrowUpRight className="w-3 h-3" />
+                                                        </span>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </motion.div>
                         ) : activeView === 'market' ? (
                             <div className="h-[60vh] flex flex-col items-center justify-center text-center p-6 space-y-4">
                                 <Globe className="w-12 h-12 text-brand opacity-20" />
-                                <p className="text-slate-500 text-sm">Real-time market stream active.</p>
+                                <p className="text-slate-500 text-sm max-w-md">
+                                    Live market news is pulled for each audit. Run an audit to see its signals in the External Signals panel.
+                                </p>
                             </div>
                         ) : activeView === 'history' ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {history.map((doc: any) => (
                                     <button key={doc.doc_id} className="glass-card p-4 text-left hover:border-brand transition-all">
-                                        <h5 className="text-white font-bold truncate">{doc.filename}</h5>
+                                        <h5 className="text-white font-bold truncate">{doc.company || 'Unknown company'}</h5>
                                         <p className="text-[10px] text-slate-500 uppercase">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
                                     </button>
                                 ))}
@@ -290,7 +352,7 @@ export default function CorporateDashboard() {
                         <div className="w-1 h-1 rounded-full bg-brand" />
                         <span>v4.2.0-PRO</span>
                     </div>
-                    <span>(C) 2026 ARIA COORPORATE</span>
+                    <span>(C) 2026 ARIA CORPORATE</span>
                 </footer>
             </main>
         </div>

@@ -60,3 +60,4 @@ logs/
 node_modules/
 .next/
 out/
+*.tsbuildinfo

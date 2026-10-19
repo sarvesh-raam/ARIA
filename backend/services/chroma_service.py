@@ -68,6 +68,15 @@ class ChromaService:
             # Lite Mode: Return the first few lines of the document as a "simulation"
             return self.mock_db.get(doc_id, ["(Simulation) Document intelligence is active. No local vector DB found."])[:n_results]
 
+    def count(self, doc_id: str) -> int:
+        """Number of stored chunks for a document (0 if it has none)."""
+        if CHROMA_AVAILABLE:
+            try:
+                return self.client.get_collection(f"doc_{doc_id.replace('-', '_')}").count()
+            except Exception:
+                return 0
+        return len(self.mock_db.get(doc_id, []))
+
     def delete_collection(self, doc_id: str):
         if CHROMA_AVAILABLE:
             try:
