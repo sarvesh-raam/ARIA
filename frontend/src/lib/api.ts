@@ -2,6 +2,17 @@ import axios from 'axios';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// Turn an API failure into a message the user can act on (backend sends { detail })
+export const getErrorMessage = (err: unknown): string => {
+    if (axios.isAxiosError(err)) {
+        if (!err.response) return 'Cannot reach the ARIA backend. Check that it is running and try again.';
+        const detail = err.response.data?.detail;
+        if (typeof detail === 'string') return detail;
+        return `Request failed (${err.response.status}).`;
+    }
+    return 'Something went wrong. Please try again.';
+};
+
 export const api = {
     uploadDocument: async (file: File, taskId?: string) => {
         const formData = new FormData();
@@ -27,8 +38,8 @@ export const api = {
     },
 
     analyzeDocument: async (docId: string) => {
-        const res = await fetch(`${API_BASE_URL}/api/analyze/${docId}`);
-        return res.json();
+        const response = await axios.get(`${API_BASE_URL}/api/analyze/${docId}`);
+        return response.data;
     },
 
     fetchFiling: async (ticker: string) => {
