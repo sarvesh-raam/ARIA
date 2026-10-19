@@ -8,12 +8,12 @@ const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
 export const metadata: Metadata = {
     title: 'ARIA | Autonomous Risk Intelligence Agent',
     description: 'The industry-standard AI ecosystem for forensic financial auditing and multi-source market intelligence.',
-    keywords: ['AI', 'Risk Analysis', 'Financial Audit', 'Forensic Intelligence', 'Llama 3.3', 'Quantitative Finance'],
+    keywords: ['AI', 'Risk Analysis', 'Financial Audit', 'Forensic Intelligence', 'RAG', 'Groq', 'Quantitative Finance'],
     authors: [{ name: 'ARIA Institutional' }],
     metadataBase: new URL('https://aria-intelligence.vercel.app'),
     openGraph: {
         title: 'ARIA Professional Audit Interface',
-        description: 'Next-generation forensic audit orchestration using Llama 3.3 and semantic search.',
+        description: 'Forensic financial audits combining document RAG, live market news and Groq-hosted LLMs.',
         url: 'https://aria-intelligence.vercel.app',
         siteName: 'ARIA Intelligence',
         locale: 'en_US',
