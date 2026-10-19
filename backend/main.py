@@ -9,6 +9,7 @@ from typing import Dict
 from fastapi.concurrency import run_in_threadpool
 from sse_starlette.sse import EventSourceResponse
 import sys
+import os
 
 # Make sure local modules are importable
 sys.path.append(str(Path(__file__).parent))
@@ -42,6 +43,8 @@ async def llm_error_handler(request, exc: LLMError):
     """The AI backend failed — report it instead of returning a made-up result."""
     print(f"[LLMError] {request.url.path}: {exc}")
     return JSONResponse(status_code=502, content={"detail": f"AI analysis failed: {exc}"})
+
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "25"))
 
 # Initialize agents
 doc_agent = DocumentAgent()
@@ -100,7 +103,13 @@ async def upload_document(file: UploadFile = File(...), task_id: str = None):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
-    content = await file.read()
+    # Read in 1 MB pieces so an oversized upload is rejected without loading it all
+    max_bytes = MAX_UPLOAD_MB * 1024 * 1024
+    content = b""
+    while piece := await file.read(1024 * 1024):
+        content += piece
+        if len(content) > max_bytes:
+            raise HTTPException(status_code=413, detail=f"File is too large (max {MAX_UPLOAD_MB} MB)")
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 

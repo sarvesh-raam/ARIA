@@ -41,7 +41,13 @@ class DocumentAgent:
 
     def _extract_text(self, content: bytes) -> str:
         """Use PyMuPDF to pull raw text from every page of the PDF."""
-        doc = fitz.open(stream=content, filetype="pdf")
+        try:
+            doc = fitz.open(stream=content, filetype="pdf")
+        except Exception:
+            raise ValueError("This file could not be read as a PDF. It may be corrupted.")
+        if doc.needs_pass:
+            doc.close()
+            raise ValueError("This PDF is password-protected. Please upload an unlocked copy.")
         pages_text = []
         for page_num, page in enumerate(doc):
             text = page.get_text()

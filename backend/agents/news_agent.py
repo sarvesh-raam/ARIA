@@ -1,9 +1,29 @@
 import os
+import re
 import requests
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from services.groq_service import GroqService
 from services.validation import clamp_score, normalize_level, require_list_of_dicts
+
+# Legal suffixes dropped from the search phrase: articles say "Nvidia", not "NVIDIA Corporation"
+COMPANY_SUFFIXES = re.compile(
+    r"[,\s]+(inc|incorporated|corp|corporation|co|company|ltd|limited|pvt|private|plc|llc|lp|sa|ag|nv|group|holdings)\.?$",
+    re.IGNORECASE,
+)
+
+
+def news_search_name(company_name: str) -> str:
+    """Turn a full legal company name into the phrase news articles actually use."""
+    name = company_name.replace('"', "").strip()
+    if name.lower().startswith("the "):
+        name = name[4:]
+    while True:
+        shorter = COMPANY_SUFFIXES.sub("", name).strip()
+        if shorter == name or not shorter:
+            return name
+        name = shorter
+
 
 class NewsAgent:
     """
@@ -35,7 +55,9 @@ class NewsAgent:
         
         url = "https://newsapi.org/v2/everything"
         params = {
-            "q": f"{company_name} AND (finance OR stock OR risk OR lawsuit OR profit OR earnings)",
+            # Quoted so the name is matched as a phrase, not as loose words
+            "q": f'"{news_search_name(company_name)}" AND (finance OR stock OR risk OR lawsuit OR profit OR earnings)',
+            "searchIn": "title,description",
             "from": from_date,
             "sortBy": "relevancy",
             "language": "en",
@@ -44,7 +66,7 @@ class NewsAgent:
         }
 
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
             return data.get("articles", [])
