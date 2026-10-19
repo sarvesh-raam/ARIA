@@ -12,6 +12,8 @@ PDF_REPLACEMENTS = {
     "™": "(TM)", "—": "--", "–": "-", "‑": "-", "‐": "-",
     "₹": "Rs.", "€": "EUR", "‘": "'", "’": "'", "“": '"', "”": '"', "…": "...",
     " ": " ", " ": " ", "​": "", "【": "[", "】": "]",
+    # Math and arrows the LLM uses in figures ("−5.7%", "≈15%", "₹53,001 cr → ₹60,914 cr")
+    "−": "-", "≈": "~", "→": "->", "←": "<-", "≥": ">=", "≤": "<=", "×": "x", "∆": "change", "Δ": "change",
 }
 
 
@@ -212,8 +214,9 @@ class ReportAgent:
             pdf.cell(20, 5, f"{value} / {maximum}", align="R")
             pdf.set_fill_color(*SUBTLE)
             pdf.rect(left, y + 6, width, 1.6, style="F")
-            pdf.set_fill_color(*ACCENT)
-            pdf.rect(left, y + 6, width * min(value / maximum, 1), 1.6, style="F")
+            if value > 0:  # a zero-width rect still renders as a hairline
+                pdf.set_fill_color(*ACCENT)
+                pdf.rect(left, y + 6, width * min(value / maximum, 1), 1.6, style="F")
         pdf.set_xy(left, top + 25)
         pdf.set_font("Helvetica", "", 7.5)
         pdf.set_text_color(*MUTED)

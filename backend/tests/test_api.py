@@ -232,6 +232,8 @@ def test_overall_score_weights_financials_over_news(app_module, monkeypatch):
 def test_pdf_text_replaces_unsupported_characters():
     from agents.report_agent import to_pdf_text
     assert to_pdf_text("₹3,000 — 60 % year‑over‑year") == "Rs.3,000 -- 60 % year-over-year"
+    # The minus sign must survive, or "−5.7%" turns into "?5.7%"
+    assert to_pdf_text("cash flow −5.7% (≈15%), ₹53 cr → ₹60 cr") == "cash flow -5.7% (~15%), Rs.53 cr -> Rs.60 cr"
 
 
 def test_report_timestamps_are_utc():
