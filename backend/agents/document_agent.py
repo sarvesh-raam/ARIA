@@ -65,11 +65,12 @@ class DocumentAgent:
             start = end - self.CHUNK_OVERLAP
         return chunks
 
-    def _extract_company_name(self, text: str, filename: str) -> str:
+    def _extract_company_name(self, text: str, filename: str) -> tuple[str, str]:
         """
         Quick heuristic: ask the LLM to extract the company name
         from the first 2000 characters of the document.
         Falls back to the filename if extraction fails.
+        Returns (name, source) where source is "llm" or "filename".
         """
         snippet = text[:2000]
         prompt = (
@@ -82,9 +83,44 @@ class DocumentAgent:
             name = self.groq.ask(prompt, max_tokens=150).strip()
         except LLMError as e:
             print(f"[DocumentAgent] Company name extraction failed, using filename: {e}")
-            return fallback
+            return fallback, "filename"
         # If the LLM returns something too long it probably failed
-        return name if len(name) < 80 else fallback
+        return (name, "llm") if len(name) < 80 else (fallback, "filename")
+
+    def _repair_existing(self, doc: dict, content: bytes, progress_callback=None) -> list[str]:
+        """
+        Re-upload of a known document: redo whatever didn't succeed the first time.
+          - company name that fell back to the filename -> ask the LLM again
+          - vectors missing (e.g. vector DB wiped on restart) -> re-embed
+        Updates `doc` in place and returns a list of what was repaired.
+        """
+        # Records saved before company_source existed: trust the name unless it is just the filename
+        source = doc.get("company_source")
+        if source is None:
+            source = "filename" if doc.get("company") in (None, "Unknown", Path(doc["filename"]).stem) else "llm"
+            doc["company_source"] = source
+
+        needs_company = source != "llm"
+        needs_vectors = self.chroma.count(doc["doc_id"]) == 0
+        if not (needs_company or needs_vectors):
+            return []
+
+        if progress_callback: progress_callback(10, "Repairing existing document...")
+        text = self._extract_text(content)
+        repaired = []
+        if needs_company:
+            if progress_callback: progress_callback(40, "Identifying company profile...")
+            company, source = self._extract_company_name(text, doc["filename"])
+            if source == "llm":
+                doc["company"], doc["company_source"] = company, source
+                repaired.append("company name")
+        if needs_vectors:
+            if progress_callback: progress_callback(60, "Generating embeddings & storing in vector DB...")
+            chunks = self._chunk_text(text)
+            self.chroma.add_chunks(doc["doc_id"], chunks)
+            doc["chunks"] = len(chunks)
+            repaired.append("embeddings")
+        return repaired
 
     # ── Public API ───────────────────────────────────────────────
 
@@ -94,15 +130,21 @@ class DocumentAgent:
         # Stable, reproducible ID based on file content
         doc_id = hashlib.md5(content).hexdigest()[:12]
 
-        # Skip re-processing if already in DB
+        # Skip re-processing if already in DB (but fix anything that failed last time)
         metadata = self._load_metadata()
         for doc in metadata:
             if doc["doc_id"] == doc_id:
+                repaired = self._repair_existing(doc, content, progress_callback)
+                if repaired:
+                    self._save_metadata(metadata)
                 return {
                     "doc_id": doc_id,
                     "filename": filename,
-                    "status": "already_exists",
-                    "message": "Document already in the database — ready to query!",
+                    "status": "repaired" if repaired else "already_exists",
+                    "message": (
+                        f"Document already in the database — repaired {', '.join(repaired)}. Ready to query!"
+                        if repaired else "Document already in the database — ready to query!"
+                    ),
                     "chunks": doc["chunks"],
                     "company": doc.get("company", "Unknown"),
                 }
@@ -119,7 +161,7 @@ class DocumentAgent:
 
         # 3. Identify company (best-effort)
         if progress_callback: progress_callback(40, "Identifying company profile...")
-        company = self._extract_company_name(text, filename)
+        company, company_source = self._extract_company_name(text, filename)
 
         # 4. Store embeddings in ChromaDB
         if progress_callback: progress_callback(60, "Generating embeddings & storing in vector DB...")
@@ -132,6 +174,7 @@ class DocumentAgent:
             "doc_id": doc_id,
             "filename": filename,
             "company": company,
+            "company_source": company_source,
             "uploaded_at": datetime.now().isoformat(),
             "chunks": len(chunks),
             "preview": text[:300].strip(),
