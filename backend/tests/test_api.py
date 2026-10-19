@@ -153,6 +153,12 @@ def test_normalize_level():
     assert normalize_level("severe") == "low"
 
 
+def test_plain_text_strips_markdown_and_citations():
+    from agents.document_agent import plain_text
+    raw = "Revenue was **$143,756 million**.【Document excerpt showing “Total net sales”】\n## Note\nUp 15.6%."
+    assert plain_text(raw) == "Revenue was $143,756 million.\nNote\nUp 15.6%."
+
+
 def test_news_search_name_strips_legal_suffixes():
     from agents.news_agent import news_search_name
     assert news_search_name("NVIDIA Corporation") == "NVIDIA"
