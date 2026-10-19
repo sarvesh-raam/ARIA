@@ -2,7 +2,7 @@ import fitz  # PyMuPDF
 import hashlib
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from services.chroma_service import ChromaService
@@ -194,7 +194,7 @@ class DocumentAgent:
             "filename": filename,
             "company": company,
             "company_source": company_source,
-            "uploaded_at": datetime.now().isoformat(),
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
             "chunks": len(chunks),
             "preview": text[:300].strip(),
         }

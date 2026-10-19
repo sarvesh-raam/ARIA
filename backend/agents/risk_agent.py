@@ -1,5 +1,5 @@
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import json
 import re
@@ -232,7 +232,7 @@ Output valid JSON only:
             },
             "financial_signals": financial_analysis,
             "news_signals": news_analysis,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         path = self._analysis_path(doc_id)
         if path is not None:
