@@ -234,6 +234,14 @@ def test_pdf_text_replaces_unsupported_characters():
     assert to_pdf_text("₹3,000 — 60 % year‑over‑year") == "Rs.3,000 -- 60 % year-over-year"
 
 
+def test_report_timestamps_are_utc():
+    from agents.report_agent import format_timestamp
+    assert format_timestamp("2026-10-19T19:06:12.123456+00:00") == "19 Oct 2026, 19:06 UTC"
+    assert format_timestamp("2026-10-20T00:36:12+05:30") == "19 Oct 2026, 19:06 UTC"
+    assert format_timestamp("2026-10-19T19:06:12.5") == "19 Oct 2026, 19:06 UTC"  # old record, odd fraction
+    assert format_timestamp("not a date") == ""
+
+
 def test_report_handles_unicode_and_unsafe_company_names(app_module):
     from agents.report_agent import ReportAgent
     data = {
