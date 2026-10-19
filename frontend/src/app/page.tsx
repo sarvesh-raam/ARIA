@@ -202,6 +202,12 @@ export default function Dashboard() {
                             <div className="min-w-0">
                                 <h1 className="truncate text-2xl font-semibold tracking-tight">{report.company}</h1>
                                 <p className="mt-1 text-sm text-muted">Analyzed {formatDateTime(report.timestamp)}</p>
+                                {report.fallback_model && (
+                                    <p className="mt-1 text-xs text-risk-elevated">
+                                        The main AI model was at its usage limit, so a smaller backup model ({report.fallback_model}) was used.
+                                        Re-run later for the most thorough analysis.
+                                    </p>
+                                )}
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={() => rerun(report.doc_id)} className="btn-secondary">

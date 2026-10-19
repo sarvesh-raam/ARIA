@@ -225,6 +225,59 @@ def test_llm_rate_limit_message_hides_groq_details(monkeypatch):
     assert "org_" not in str(err.value) and "200000" not in str(err.value)
 
 
+class FakeCompletion:
+    """Stands in for Groq's chat.completions.create: some models are 'out of quota'."""
+
+    def __init__(self, limited_models, reply='{"ok": true}'):
+        self.limited, self.reply, self.calls = set(limited_models), reply, []
+
+    def __call__(self, **kwargs):
+        self.calls.append(kwargs["model"])
+        if kwargs["model"] in self.limited:
+            raise Exception("Error code: 429 - Rate limit reached for model on tokens per day (TPD)")
+        message = type("M", (), {"content": self.reply})
+        return type("R", (), {"choices": [type("C", (), {"message": message})]})
+
+
+def test_fallback_model_used_when_main_model_is_out_of_quota(monkeypatch):
+    from services.groq_service import GroqService
+    groq = GroqService()
+    fake = FakeCompletion(limited_models=[groq.MODEL])
+    monkeypatch.setattr(groq.client.chat.completions, "create", fake)
+    data = groq.ask_json("Return JSON")
+    assert data["ok"] is True and data["_model"] == groq.FALLBACK_MODEL
+    assert fake.calls == [groq.MODEL, groq.FALLBACK_MODEL]  # no pointless retries on a daily limit
+
+
+def test_error_when_both_models_are_out_of_quota(monkeypatch):
+    from services.groq_service import GroqService, LLMError
+    groq = GroqService()
+    monkeypatch.setattr(groq.client.chat.completions, "create", FakeCompletion([groq.MODEL, groq.FALLBACK_MODEL]))
+    with pytest.raises(LLMError, match="daily usage limit"):
+        groq.ask("hi")
+
+
+def test_fallback_can_be_disabled(monkeypatch):
+    from services.groq_service import GroqService, LLMError
+    groq = GroqService()
+    monkeypatch.setattr(groq, "FALLBACK_MODEL", "")
+    fake = FakeCompletion([groq.MODEL])
+    monkeypatch.setattr(groq.client.chat.completions, "create", fake)
+    with pytest.raises(LLMError):
+        groq.ask("hi")
+    assert fake.calls == [groq.MODEL]
+
+
+def test_analysis_reports_when_fallback_model_was_used(app_module, monkeypatch):
+    agent = app_module.risk_agent
+    agent.doc_agent._save_metadata([owned_doc("0123456789ab")])
+    monkeypatch.setattr(agent, "analyze_financial_anomalies", lambda doc_id: {
+        "financial_risk_score": 5, "key_metrics": [], "anomalies": [], "summary": "s", "model": agent.groq.FALLBACK_MODEL})
+    monkeypatch.setattr(agent.news_agent, "get_risk_report", lambda company, context: {
+        "news_risk_score": 0, "summary": "s", "signals": [], "model": agent.groq.MODEL})
+    assert agent.run_full_analysis("0123456789ab")["fallback_model"] == agent.groq.FALLBACK_MODEL
+
+
 def test_clamp_score():
     from services.groq_service import LLMError
     from services.validation import clamp_score

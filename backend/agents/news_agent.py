@@ -148,6 +148,7 @@ Output valid JSON only:
         return {
             "news_risk_score": cap_by_findings(clamp_score(data.get("news_risk_score")), [s["impact"] for s in signals]),
             "summary": str(data.get("summary", "")),
+            "model": data.get("_model"),
             "signals": signals,
         }
 
