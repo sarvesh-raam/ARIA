@@ -2,59 +2,65 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme tokens (space-separated RGB so Tailwind opacity modifiers work, e.g. bg-accent/10) */
+:root {
+  --canvas: 247 248 250;
+  --surface: 255 255 255;
+  --subtle: 242 244 247;
+  --line: 228 231 236;
+  --ink: 16 24 40;
+  --muted: 102 112 133;
+  --accent: 29 78 216;
+  --on-accent: 255 255 255;
+  --stable: 3 152 85;
+  --elevated: 220 104 3;
+  --critical: 217 45 32;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: 11 13 18;
+    --surface: 19 22 29;
+    --subtle: 27 31 40;
+    --line: 39 44 56;
+    --ink: 230 232 238;
+    --muted: 139 147 167;
+    --accent: 120 156 255;
+    --on-accent: 11 13 18;
+    --stable: 50 213 131;
+    --elevated: 253 176 34;
+    --critical: 249 112 102;
+    color-scheme: dark;
+  }
+}
+
 @layer base {
   body {
-    @apply text-foreground bg-background font-sans selection:bg-brand/30 selection:text-brand-light;
-    background-image: var(--mesh-glow);
-  }
-  
-  h1, h2, h3, h4, .font-display {
-    @apply tracking-tight font-semibold;
-    font-family: var(--font-outfit), ui-sans-serif, system-ui;
+    @apply bg-canvas text-ink font-sans antialiased;
   }
 }
 
 @layer components {
+  .card {
+    @apply rounded-xl border border-line bg-surface;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
   .btn-primary {
-    @apply px-6 py-2.5 rounded-lg bg-brand hover:bg-brand-light text-background font-semibold transition-all duration-300 shadow-glow-cyan active:scale-95 disabled:opacity-50;
-  }
-  
-  .glass-card {
-    @apply p-6 rounded-xl bg-card/60 backdrop-blur-xl border border-white/5 hover:border-brand/20 transition-all duration-500;
-    @apply hover:shadow-[0_0_20px_rgba(6,182,212,0.05)];
-  }
-  
-  .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-brand hover:bg-white/5 transition-all duration-300;
+    @apply btn bg-accent text-on-accent hover:bg-accent/90;
   }
 
-  .risk-badge {
-    @apply px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-current;
+  .btn-secondary {
+    @apply btn border border-line bg-surface text-ink hover:bg-subtle;
   }
-}
 
-/* Sophisticated Transitions */
-.page-transition {
-  transition: opacity 800ms ease, transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Custom Scrollbar (Corporate Style) */
-::-webkit-scrollbar {
-  width: 10px;
-}
-::-webkit-scrollbar-track {
-  @apply bg-background;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-slate-800 rounded-full border-4 border-background hover:bg-slate-700 transition-colors;
-}
-
-@keyframes scan-line {
-  0% { transform: translateY(-100%); opacity: 0; }
-  50% { opacity: 0.5; }
-  100% { transform: translateY(1000%); opacity: 0; }
-}
-
-.animate-scan {
-  animation: scan-line 4s linear infinite;
+  .section-title {
+    @apply text-sm font-semibold text-ink;
+  }
 }

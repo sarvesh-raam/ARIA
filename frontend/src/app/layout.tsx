@@ -1,19 +1,18 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Outfit } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
 
 export const metadata: Metadata = {
-    title: 'ARIA | Autonomous Risk Intelligence Agent',
-    description: 'The industry-standard AI ecosystem for forensic financial auditing and multi-source market intelligence.',
+    title: 'ARIA | Financial Risk Analysis',
+    description: 'Upload a financial report and get a risk score built from its statements and recent news.',
     keywords: ['AI', 'Risk Analysis', 'Financial Audit', 'Forensic Intelligence', 'RAG', 'Groq', 'Quantitative Finance'],
-    authors: [{ name: 'ARIA Institutional' }],
+    authors: [{ name: 'Sarvesh Raam' }],
     metadataBase: new URL('https://aria-intelligence.vercel.app'),
     openGraph: {
-        title: 'ARIA Professional Audit Interface',
-        description: 'Forensic financial audits combining document RAG, live market news and Groq-hosted LLMs.',
+        title: 'ARIA | Financial Risk Analysis',
+        description: 'Financial risk analysis combining document RAG, recent news and Groq-hosted LLMs.',
         url: 'https://aria-intelligence.vercel.app',
         siteName: 'ARIA Intelligence',
         locale: 'en_US',
@@ -21,13 +20,16 @@ export const metadata: Metadata = {
     },
     twitter: {
         card: 'summary_large_image',
-        title: 'ARIA Professional Audit Interface',
-        description: 'Next-generation forensic audit orchestration.',
+        title: 'ARIA | Financial Risk Analysis',
+        description: 'Upload a financial report and get a risk score built from its statements and recent news.',
     }
 }
 
 export const viewport: Viewport = {
-    themeColor: '#0f172a',
+    themeColor: [
+        { media: '(prefers-color-scheme: light)', color: '#f7f8fa' },
+        { media: '(prefers-color-scheme: dark)', color: '#0b0d12' },
+    ],
     width: 'device-width',
     initialScale: 1,
 }
@@ -38,8 +40,8 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
-            <body className="antialiased min-h-screen bg-slate-950 font-sans">
+        <html lang="en" className={inter.variable}>
+            <body className="min-h-screen">
                 {children}
             </body>
         </html>

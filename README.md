@@ -48,7 +48,7 @@ graph LR
 </details>
 
 ## System Architecture & Components
-- **Frontend**: Next.js 15 dashboard with live progress updates via Server-Sent Events (SSE), internal and external signal panels, and a live backend status indicator.
+- **Frontend**: Next.js 15 dashboard (light and dark themes) with live progress via Server-Sent Events (SSE), a score breakdown, key metrics, news signals with sources, Q&A on the uploaded report, and a history of past analyses.
 - **Backend API**: Python FastAPI layer handling uploads, orchestration, validation and rate limiting.
 - **RAG Pipeline**: PyMuPDF text extraction, overlapping chunks, and ChromaDB with `all-MiniLM-L6-v2` sentence-transformer embeddings.
 - **LLM**: Groq-hosted `openai/gpt-oss-120b` by default (configurable), using JSON mode for structured output that is validated before use.
@@ -68,7 +68,7 @@ graph LR
 | 41-70 | Medium Risk [ELEVATED] |
 | 71-100 | Critical Risk [CRITICAL] |
 
-Other endpoints: `GET /api/documents` (list; filenames and previews only with the admin key) and `DELETE /api/documents/{doc_id}` (admin key required).
+Other endpoints: `GET /api/analysis/{doc_id}` (last saved analysis, no LLM call), `GET /api/documents` (list; filenames and previews only with the admin key) and `DELETE /api/documents/{doc_id}` (admin key required).
 
 ## Example Output Payload
 `GET /api/analyze/{doc_id}`:
