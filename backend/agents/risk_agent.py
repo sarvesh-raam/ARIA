@@ -1,4 +1,8 @@
-from typing import Dict
+from typing import Dict, Optional
+from datetime import datetime
+from pathlib import Path
+import json
+import re
 from agents.document_agent import DocumentAgent
 from agents.news_agent import NewsAgent
 from agents.report_agent import ReportAgent
@@ -19,6 +23,26 @@ class RiskAgent:
         self.news_agent = NewsAgent()
         self.report_agent = ReportAgent()
         self.groq = GroqService()
+        # Last analysis per document, so the PDF matches what the dashboard showed
+        self.analyses_dir = Path("data/analyses")
+        self.analyses_dir.mkdir(parents=True, exist_ok=True)
+
+    def _analysis_path(self, doc_id: str) -> Optional[Path]:
+        # doc_id comes from the URL — only accept real IDs (12 hex chars) so it can't escape the folder
+        if not re.fullmatch(r"[0-9a-f]{12}", doc_id):
+            return None
+        return self.analyses_dir / f"{doc_id}.json"
+
+    def load_analysis(self, doc_id: str) -> Optional[Dict]:
+        path = self._analysis_path(doc_id)
+        if path is None or not path.exists():
+            return None
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def clear_analysis(self, doc_id: str):
+        path = self._analysis_path(doc_id)
+        if path is not None:
+            path.unlink(missing_ok=True)
 
     def analyze_financial_anomalies(self, doc_id: str) -> Dict:
         """
@@ -105,22 +129,26 @@ Output your findings in valid JSON format:
         if total_score > 70: rating = "Critical Risk [CRITICAL]"
         elif total_score > 40: rating = "Medium Risk [ELEVATED]"
 
-        return {
+        result = {
             "doc_id": doc_id,
             "company": company_name,
             "overall_risk_score": total_score,
             "rating": rating,
             "financial_signals": financial_analysis,
             "news_signals": news_analysis,
-            "timestamp": doc_info["uploaded_at"]
+            "timestamp": datetime.now().isoformat(),
         }
+        path = self._analysis_path(doc_id)
+        if path is not None:
+            path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        return result
 
     def generate_report(self, doc_id: str) -> str:
         """
-        Run full analysis and generate a PDF report.
+        Generate a PDF report from the latest analysis (running one if none exists).
         Returns the path to the PDF.
         """
-        analysis_data = self.run_full_analysis(doc_id)
+        analysis_data = self.load_analysis(doc_id) or self.run_full_analysis(doc_id)
         if "error" in analysis_data:
             raise ValueError(analysis_data["error"])
         

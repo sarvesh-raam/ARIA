@@ -139,6 +139,10 @@ async def upload_document(file: UploadFile = File(...), task_id: str = None):
     if progress_id != doc_id:
         update_progress(doc_id, progress_store.get(progress_id, {}).get("percentage", 100), "Handoff complete")
 
+    if result["status"] == "repaired":
+        # Company name or content changed, so the saved analysis is out of date
+        risk_agent.clear_analysis(doc_id)
+
     update_progress(progress_id, 100, "Upload complete!")
     return result
 
@@ -154,8 +158,7 @@ async def query_document(request: QueryRequest):
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-    result = doc_agent.query_document(request.doc_id, request.question)
-    return result
+    return await run_in_threadpool(doc_agent.query_document, request.doc_id, request.question)
 
 # ─────────────────────────────────────────────
 #  LIST ALL DOCUMENTS
@@ -171,6 +174,7 @@ async def list_documents():
 @app.delete("/api/documents/{doc_id}")
 async def delete_document(doc_id: str):
     """Remove a document and all its stored data."""
+    risk_agent.clear_analysis(doc_id)
     return doc_agent.delete_document(doc_id)
 
 
@@ -215,7 +219,7 @@ async def get_pdf_report(doc_id: str):
     Generate and download a professional PDF risk report for a document.
     """
     try:
-        pdf_path = risk_agent.generate_report(doc_id)
+        pdf_path = await run_in_threadpool(risk_agent.generate_report, doc_id)
         return FileResponse(
             path=pdf_path, 
             filename=Path(pdf_path).name,
