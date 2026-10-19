@@ -301,7 +301,7 @@ export default function CorporateDashboard() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {history.map((doc: any) => (
                                     <button key={doc.doc_id} className="glass-card p-4 text-left hover:border-brand transition-all">
-                                        <h5 className="text-white font-bold truncate">{doc.filename}</h5>
+                                        <h5 className="text-white font-bold truncate">{doc.company || 'Unknown company'}</h5>
                                         <p className="text-[10px] text-slate-500 uppercase">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
                                     </button>
                                 ))}

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -17,6 +17,7 @@ sys.path.append(str(Path(__file__).parent))
 from agents.document_agent import DocumentAgent
 from agents.risk_agent import RiskAgent
 from services.groq_service import LLMError
+from services.security import ai_rate_limit, is_admin, require_admin
 from models.schemas import QueryRequest, RiskReport
 
 app = FastAPI(
@@ -45,6 +46,7 @@ async def llm_error_handler(request, exc: LLMError):
     return JSONResponse(status_code=502, content={"detail": f"AI analysis failed: {exc}"})
 
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "25"))
+PROGRESS_STREAM_MAX_SECONDS = 15 * 60  # longer than any real upload + analysis
 
 # Initialize agents
 doc_agent = DocumentAgent()
@@ -63,7 +65,9 @@ async def progress_stream(progress_id: str):
     """SSE endpoint to stream progress for a specific task."""
     async def event_generator():
         last_percent = -1
-        while True:
+        # Stop eventually even if the task never reports (unknown ID, crashed worker)
+        deadline = asyncio.get_running_loop().time() + PROGRESS_STREAM_MAX_SECONDS
+        while asyncio.get_running_loop().time() < deadline:
             if progress_id in progress_store:
                 data = progress_store[progress_id]
                 # Only send if progress changed
@@ -93,7 +97,7 @@ def health_check():
 # ─────────────────────────────────────────────
 #  UPLOAD A DOCUMENT
 # ─────────────────────────────────────────────
-@app.post("/api/upload")
+@app.post("/api/upload", dependencies=[Depends(ai_rate_limit)])
 async def upload_document(file: UploadFile = File(...), task_id: str = None):
     """
     Upload a PDF document.
@@ -149,7 +153,7 @@ async def upload_document(file: UploadFile = File(...), task_id: str = None):
 # ─────────────────────────────────────────────
 #  ASK A QUESTION ABOUT A DOCUMENT
 # ─────────────────────────────────────────────
-@app.post("/api/query")
+@app.post("/api/query", dependencies=[Depends(ai_rate_limit)])
 async def query_document(request: QueryRequest):
     """
     Ask any natural-language question about a previously uploaded document.
@@ -163,15 +167,23 @@ async def query_document(request: QueryRequest):
 # ─────────────────────────────────────────────
 #  LIST ALL DOCUMENTS
 # ─────────────────────────────────────────────
+PUBLIC_DOCUMENT_FIELDS = ("doc_id", "company", "uploaded_at", "chunks")
+
 @app.get("/api/documents")
-async def list_documents():
-    """Return all documents that have been uploaded and processed."""
-    return doc_agent.list_documents()
+async def list_documents(admin: bool = Depends(is_admin)):
+    """
+    Return all documents that have been uploaded and processed.
+    Without the admin key only non-sensitive fields are returned (no filenames or text previews).
+    """
+    docs = doc_agent.list_documents()
+    if admin:
+        return docs
+    return [{k: d.get(k) for k in PUBLIC_DOCUMENT_FIELDS} for d in docs]
 
 # ─────────────────────────────────────────────
 #  DELETE A DOCUMENT
 # ─────────────────────────────────────────────
-@app.delete("/api/documents/{doc_id}")
+@app.delete("/api/documents/{doc_id}", dependencies=[Depends(require_admin)])
 async def delete_document(doc_id: str):
     """Remove a document and all its stored data."""
     risk_agent.clear_analysis(doc_id)
@@ -181,7 +193,7 @@ async def delete_document(doc_id: str):
 # ─────────────────────────────────────────────
 #  FULL RISK ANALYSIS (Phase 2)
 # ─────────────────────────────────────────────
-@app.get("/api/analyze/{doc_id}", response_model=RiskReport)
+@app.get("/api/analyze/{doc_id}", response_model=RiskReport, dependencies=[Depends(ai_rate_limit)])
 async def analyze_document(doc_id: str):
     """
     Perform a multi-source risk analysis:
@@ -213,7 +225,7 @@ async def analyze_document(doc_id: str):
 # ─────────────────────────────────────────────
 #  GENERATE PDF REPORT (Phase 3)
 # ─────────────────────────────────────────────
-@app.get("/api/report/{doc_id}")
+@app.get("/api/report/{doc_id}", dependencies=[Depends(ai_rate_limit)])
 async def get_pdf_report(doc_id: str):
     """
     Generate and download a professional PDF risk report for a document.
