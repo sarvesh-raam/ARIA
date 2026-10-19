@@ -124,6 +124,8 @@ Rules:
 - Improvements are NOT anomalies: higher revenue or profit, lower debt, debt repayment, rising cash.
   For debt and liabilities a DECREASE is favorable. Negative investing cash flow (capital spending,
   buying securities) is normal for a healthy company, not an anomaly.
+- Judge liabilities against the size of the business: liabilities growing no faster than total assets
+  or equity is normal growth, not rising leverage. Flag them only if they outpace assets/equity.
 - Copy figures exactly as written in the excerpts (e.g. "$12,350M", not "$12.35B"); never invent numbers.
   If a metric isn't in the excerpts, leave it out.
 - Report line items as stated. Don't add line items together to make your own totals (e.g. "total debt").
