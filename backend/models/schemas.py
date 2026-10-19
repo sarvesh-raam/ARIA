@@ -49,11 +49,13 @@ class FinancialAnalysis(BaseModel):
     key_metrics: list[dict] = []
     anomalies: list[dict]
     summary: str
+    model: Optional[str] = None
 
 
 class NewsAnalysis(BaseModel):
     news_risk_score: int
     summary: str
+    model: Optional[str] = None
     signals: list[RiskSignal]
     top_stories: Optional[list[dict]] = None
     available: bool = True  # False when news could not be fetched
@@ -69,3 +71,4 @@ class RiskReport(BaseModel):
     financial_signals: FinancialAnalysis
     news_signals: NewsAnalysis
     timestamp: str
+    fallback_model: Optional[str] = None

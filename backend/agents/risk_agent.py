@@ -178,6 +178,7 @@ Output valid JSON only:
             "key_metrics": [m for m in key_metrics if grounded(m, f"{m['current']} {m['prior']}")],
             "anomalies": anomalies,
             "summary": str(data.get("summary", "")),
+            "model": data.get("_model"),
         }
 
     def run_full_analysis(self, doc_id: str, progress_callback=None) -> Dict:
@@ -235,6 +236,11 @@ Output valid JSON only:
             "financial_signals": financial_analysis,
             "news_signals": news_analysis,
             "timestamp": datetime.now(timezone.utc).isoformat(),
+            # Set when part of the analysis came from the backup model (main model out of quota)
+            "fallback_model": next(
+                (m for m in (financial_analysis.get("model"), news_analysis.get("model")) if m and m != self.groq.MODEL),
+                None,
+            ),
         }
         path = self._analysis_path(doc_id)
         if path is not None:

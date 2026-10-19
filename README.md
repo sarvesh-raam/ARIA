@@ -132,6 +132,7 @@ Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `fr
 | `GROQ_API_KEY` | backend | (required) | Groq API key |
 | `NEWS_API_KEY` | backend | (none) | NewsAPI key for live news |
 | `GROQ_MODEL` | backend | `openai/gpt-oss-120b` | Groq model to use |
+| `GROQ_FALLBACK_MODEL` | backend | `openai/gpt-oss-20b` | Backup model used when the main model hits its rate limit (empty disables) |
 | `GROQ_REASONING_EFFORT` | backend | `low` | Reasoning effort for gpt-oss models |
 | `MAX_UPLOAD_MB` | backend | `25` | Maximum PDF size |
 | `ADMIN_API_KEY` | backend | (none) | Enables delete and full document details via the `X-Admin-Key` header. Server-side only, never put it in the frontend |

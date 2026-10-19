@@ -57,6 +57,8 @@ export interface RiskReport {
         window_days?: number | null;
     };
     timestamp: string;
+    // Set when the main AI model was out of quota and the backup model answered
+    fallback_model?: string | null;
 }
 
 export interface DocumentSummary {

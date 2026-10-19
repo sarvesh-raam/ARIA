@@ -169,6 +169,9 @@ class ReportAgent:
         analyzed = format_timestamp(data.get("timestamp"))
         meta = [f"Analyzed {analyzed}" if analyzed else "", f"Report ID {data.get('doc_id', '')}"]
         self._text(pdf, "  |  ".join(m for m in meta if m), size=9, color=MUTED)
+        if data.get("fallback_model"):
+            self._text(pdf, f"Analyzed with the backup AI model ({data['fallback_model']}) because the main model "
+                            "was at its usage limit.", size=8.5, color=TONE_COLORS["elevated"])
 
     def _score(self, pdf: FPDF, data: dict):
         score = int(data.get("overall_risk_score", 0))
