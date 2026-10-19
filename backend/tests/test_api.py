@@ -112,6 +112,28 @@ def test_statement_lookup_skips_table_of_contents(app_module):
     assert found[1].startswith("Earnings per share")  # the statement continues in the next chunk
 
 
+def test_statement_lookup_with_title_in_other_case(app_module):
+    # Chroma 0.4.x matches $contains case-insensitively: "Balance Sheets" must not crash on "BALANCE SHEETS"
+    agent = app_module.risk_agent
+    doc_id = "abcabcabcabc"
+    agent.doc_agent.chroma.add_chunks(doc_id, [
+        "CONSOLIDATED BALANCE SHEETS (In millions) Total assets 359,241 364,980 Total liabilities 285,508",
+        "Shareholders equity 73,733 56,950",
+    ])
+    found = agent._statement_chunks(doc_id, ["BALANCE SHEETS", "Balance Sheets"])
+    assert found[0].startswith("CONSOLIDATED BALANCE SHEETS")
+    assert agent._statement_chunks(doc_id, ["Balance Sheets"]) == []  # exact-case title not present
+
+
+def test_internal_errors_are_not_shown_as_document_errors(client, app_module, monkeypatch):
+    app_module.doc_agent._save_metadata([{"doc_id": "0123456789ab", "company": "Acme", "uploaded_at": "x", "chunks": 1}])
+    def boom(doc_id):
+        raise ValueError("substring not found")  # a bug, not a problem with the user's file
+    monkeypatch.setattr(app_module.risk_agent, "analyze_financial_anomalies", boom)
+    r = client.get("/api/analyze/0123456789ab")
+    assert r.status_code == 500 and "substring" not in r.text
+
+
 # ── Security helpers ────────────────────────────────────────────
 
 def test_rate_limiter_blocks_after_limit():

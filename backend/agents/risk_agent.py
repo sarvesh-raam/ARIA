@@ -3,7 +3,7 @@ from datetime import datetime
 from pathlib import Path
 import json
 import re
-from agents.document_agent import DocumentAgent
+from agents.document_agent import DocumentAgent, DocumentError
 from agents.news_agent import NewsAgent
 from agents.report_agent import ReportAgent
 from services.groq_service import GroqService
@@ -81,8 +81,11 @@ class RiskAgent:
         candidates = []
         for title in titles:
             for index, text in self.doc_agent.chroma.find_containing(doc_id, title).items():
+                start = text.find(title)
+                if start == -1:
+                    continue
                 following = self.doc_agent.chroma.get_chunk(doc_id, index + 1) or ""
-                after_title = (text[text.index(title):] + following)[:1500]
+                after_title = (text[start:] + following)[:1500]
                 density = sum(ch.isdigit() for ch in after_title) / max(len(after_title), 1)
                 candidates.append((density, text, following))
         if not candidates:
@@ -106,7 +109,7 @@ class RiskAgent:
         """
         chunks = self.gather_financial_context(doc_id)
         if not chunks:
-            raise ValueError("No searchable content found for this document. Try re-uploading it.")
+            raise DocumentError("No searchable content found for this document. Try re-uploading it.")
         context = "\n\n---\n\n".join(chunks)
 
         prompt = f"""You are ARIA, a forensic financial auditor.
@@ -243,7 +246,7 @@ Output valid JSON only:
         """
         analysis_data = self.load_analysis(doc_id) or self.run_full_analysis(doc_id)
         if "error" in analysis_data:
-            raise ValueError(analysis_data["error"])
+            raise LookupError(analysis_data["error"])
         
         pdf_path = self.report_agent.generate_pdf_report(analysis_data)
         return pdf_path

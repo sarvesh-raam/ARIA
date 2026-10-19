@@ -14,7 +14,7 @@ import os
 # Make sure local modules are importable
 sys.path.append(str(Path(__file__).parent))
 
-from agents.document_agent import DocumentAgent
+from agents.document_agent import DocumentAgent, DocumentError
 from agents.risk_agent import RiskAgent
 from services.groq_service import LLMError
 from services.security import ai_rate_limit, is_admin, require_admin
@@ -134,7 +134,7 @@ async def upload_document(file: UploadFile = File(...), task_id: str = None):
         result = await run_in_threadpool(sync_ingest)
     except Exception as e:
         update_progress(progress_id, 100, "Upload failed")
-        if isinstance(e, ValueError):
+        if isinstance(e, DocumentError):
             raise HTTPException(status_code=400, detail=str(e))
         raise
     
@@ -224,7 +224,7 @@ async def analyze_document(doc_id: str):
         result = await run_in_threadpool(sync_analyze)
     except Exception as e:
         update_progress(doc_id, 100, "Analysis failed")
-        if isinstance(e, ValueError):
+        if isinstance(e, DocumentError):
             raise HTTPException(status_code=422, detail=str(e))
         raise
     if "error" in result:
@@ -249,12 +249,16 @@ async def get_pdf_report(doc_id: str):
             filename=Path(pdf_path).name,
             media_type='application/pdf'
         )
-    except ValueError as e:
+    except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except DocumentError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except LLMError:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
+        # Don't send internal error details to the browser; they're in the server log
+        print(f"[Report] Generation failed for {doc_id}: {e!r}")
+        raise HTTPException(status_code=500, detail="Report generation failed. Please try again.")
 
 
 if __name__ == "__main__":

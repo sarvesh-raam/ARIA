@@ -9,6 +9,10 @@ from services.chroma_service import ChromaService
 from services.groq_service import GroqService, LLMError
 
 
+class DocumentError(ValueError):
+    """A problem with the user's document. The message is safe to show them."""
+
+
 def plain_text(answer: str) -> str:
     """Strip the markdown and 【citation】 markers gpt-oss adds even when asked not to."""
     answer = re.sub(r"【[^】]*】", "", answer)
@@ -53,10 +57,10 @@ class DocumentAgent:
         try:
             doc = fitz.open(stream=content, filetype="pdf")
         except Exception:
-            raise ValueError("This file could not be read as a PDF. It may be corrupted.")
+            raise DocumentError("This file could not be read as a PDF. It may be corrupted.")
         if doc.needs_pass:
             doc.close()
-            raise ValueError("This PDF is password-protected. Please upload an unlocked copy.")
+            raise DocumentError("This PDF is password-protected. Please upload an unlocked copy.")
         pages_text = []
         for page_num, page in enumerate(doc):
             text = page.get_text()
@@ -168,7 +172,7 @@ class DocumentAgent:
         if progress_callback: progress_callback(10, "Extracting text from PDF...")
         text = self._extract_text(content)
         if not text.strip():
-            raise ValueError("Could not extract any text from this PDF. Is it scanned/image-only?")
+            raise DocumentError("Could not extract any text from this PDF. Is it scanned/image-only?")
 
         # 2. Chunk
         if progress_callback: progress_callback(25, "Splitting into semantic chunks...")

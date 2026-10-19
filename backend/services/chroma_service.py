@@ -75,7 +75,12 @@ class ChromaService:
                 results = self._get_collection(doc_id).get(
                     where_document={"$contains": phrase}, include=["documents", "metadatas"]
                 )
-                return {m["chunk_index"]: t for m, t in zip(results["metadatas"], results["documents"])}
+                # Older Chroma (0.4.x) matches with SQL LIKE, which ignores case — re-check exactly
+                return {
+                    m["chunk_index"]: t
+                    for m, t in zip(results["metadatas"], results["documents"])
+                    if phrase in t
+                }
             except Exception as e:
                 print(f"[ChromaService] Text lookup error: {e}")
                 return {}
