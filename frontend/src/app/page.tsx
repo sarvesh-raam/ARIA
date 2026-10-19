@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Download, RefreshCw, Shield, Upload, X } from 'lucide-react';
-import { api, API_BASE_URL, getErrorMessage, isNotFound } from '@/lib/api';
+import { AlertTriangle, Download, Loader2, RefreshCw, Shield, Upload, X } from 'lucide-react';
+import { api, API_BASE_URL, getErrorMessage, isNotFound, newTaskId } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 import type { DocumentSummary, RiskReport } from '@/lib/types';
 import AskPanel from '@/components/AskPanel';
@@ -33,6 +33,7 @@ export default function Dashboard() {
     // Opened from history but never analyzed (or its analysis was lost on a server restart)
     const [unanalyzed, setUnanalyzed] = useState<DocumentSummary | null>(null);
     const [busy, setBusy] = useState(false);
+    const [downloading, setDownloading] = useState(false);
     const [status, setStatus] = useState('');
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState<string | null>(null);
@@ -84,8 +85,10 @@ export default function Dashboard() {
     };
 
     const analyze = (docId: string, sources: EventSource[]) => {
-        sources.push(trackProgress(docId));
-        return api.analyzeDocument(docId).then((result) => {
+        // Fresh progress ID per run, so the stream can't pick up the last run's "complete"
+        const taskId = newTaskId();
+        sources.push(trackProgress(taskId));
+        return api.analyzeDocument(docId, taskId).then((result) => {
             setReport(result);
             setUnanalyzed(null);
         });
@@ -95,13 +98,25 @@ export default function Dashboard() {
         withProgress('Uploading report…', async (sources) => {
             setReport(null);
             setUnanalyzed(null);
-            const taskId = 'task_' + Math.random().toString(36).substring(7);
+            const taskId = newTaskId();
             sources.push(trackProgress(taskId));
             const upload = await api.uploadDocument(file, taskId);
             sources.forEach((s) => s.close());
             await analyze(upload.doc_id, sources);
             fetchHistory();
         });
+
+    const downloadPdf = async (docId: string) => {
+        setDownloading(true);
+        setError(null);
+        try {
+            await api.downloadReport(docId);
+        } catch (err) {
+            setError(getErrorMessage(err));
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     const rerun = (docId: string) => withProgress('Starting analysis…', (sources) => analyze(docId, sources));
 
@@ -192,9 +207,12 @@ export default function Dashboard() {
                                 <button onClick={() => rerun(report.doc_id)} className="btn-secondary">
                                     <RefreshCw className="h-4 w-4" aria-hidden /> Re-run
                                 </button>
-                                <a href={api.reportUrl(report.doc_id)} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                                    <Download className="h-4 w-4" aria-hidden /> Download PDF
-                                </a>
+                                <button onClick={() => downloadPdf(report.doc_id)} disabled={downloading} className="btn-secondary">
+                                    {downloading
+                                        ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                        : <Download className="h-4 w-4" aria-hidden />}
+                                    Download PDF
+                                </button>
                             </div>
                         </div>
 

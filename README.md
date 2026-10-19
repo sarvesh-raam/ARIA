@@ -68,6 +68,8 @@ graph LR
 | 41-70 | Medium Risk [ELEVATED] |
 | 71-100 | Critical Risk [CRITICAL] |
 
+**Private workspaces:** every request carries an `X-Workspace-Id` header, a random ID each browser generates for itself (no sign-up). Documents are stored per workspace, so visitors only see and query their own uploads; other workspaces get a 404.
+
 Other endpoints: `GET /api/analysis/{doc_id}` (last saved analysis, no LLM call), `GET /api/documents` (list; filenames and previews only with the admin key) and `DELETE /api/documents/{doc_id}` (admin key required).
 
 ## Example Output Payload

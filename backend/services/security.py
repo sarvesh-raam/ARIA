@@ -1,4 +1,6 @@
+import hashlib
 import os
+import re
 import secrets
 import time
 from collections import defaultdict, deque
@@ -20,6 +22,16 @@ def require_admin(x_admin_key: str = Header(default="")):
         raise HTTPException(status_code=403, detail="Admin actions are disabled (ADMIN_API_KEY is not set)")
     if not is_admin(x_admin_key):
         raise HTTPException(status_code=401, detail="Invalid or missing X-Admin-Key header")
+
+
+def workspace_owner(x_workspace_id: str = Header(default="")) -> str:
+    """
+    Each browser sends a random workspace ID it generated itself (no sign-up). Documents are
+    tagged with a hash of it, so visitors only see their own uploads and the raw ID is never stored.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9-]{16,64}", x_workspace_id):
+        raise HTTPException(status_code=400, detail="Missing or invalid workspace ID. Please reload the page.")
+    return hashlib.sha256(x_workspace_id.encode()).hexdigest()
 
 
 def client_ip(request: Request) -> str:

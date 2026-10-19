@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -17,7 +17,7 @@ sys.path.append(str(Path(__file__).parent))
 from agents.document_agent import DocumentAgent, DocumentError
 from agents.risk_agent import RiskAgent
 from services.groq_service import LLMError
-from services.security import ai_rate_limit, is_admin, require_admin
+from services.security import ai_rate_limit, is_admin, require_admin, workspace_owner
 from models.schemas import QueryRequest, RiskReport
 
 app = FastAPI(
@@ -37,6 +37,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],  # lets the browser read the PDF filename
 )
 
 @app.exception_handler(LLMError)
@@ -51,6 +52,11 @@ PROGRESS_STREAM_MAX_SECONDS = 15 * 60  # longer than any real upload + analysis
 # Initialize agents
 doc_agent = DocumentAgent()
 risk_agent = RiskAgent(doc_agent)
+
+def require_owned(doc_id: str, owner: str = Depends(workspace_owner)):
+    """Only the workspace that uploaded a document can use it. Others get the same 404 as a missing one."""
+    if doc_agent.get_owned_document(doc_id, owner) is None:
+        raise HTTPException(status_code=404, detail="Document not found")
 
 # Progress tracking
 # Structure: { progress_id: {"percentage": int, "status": str} }
@@ -98,7 +104,7 @@ def health_check():
 #  UPLOAD A DOCUMENT
 # ─────────────────────────────────────────────
 @app.post("/api/upload", dependencies=[Depends(ai_rate_limit)])
-async def upload_document(file: UploadFile = File(...), task_id: str = None):
+async def upload_document(file: UploadFile = File(...), task_id: str = None, owner: str = Depends(workspace_owner)):
     """
     Upload a PDF document.
     ARIA will read it, chunk it, and store it in the vector database.
@@ -125,8 +131,9 @@ async def upload_document(file: UploadFile = File(...), task_id: str = None):
     def sync_ingest():
         print(f"Starting ingest for {file.filename} (Progress ID: {progress_id})")
         return doc_agent.ingest_document(
-            content, 
-            file.filename, 
+            content,
+            file.filename,
+            owner,
             progress_callback=lambda p, s: update_progress(progress_id, p, s)
         )
 
@@ -154,11 +161,12 @@ async def upload_document(file: UploadFile = File(...), task_id: str = None):
 #  ASK A QUESTION ABOUT A DOCUMENT
 # ─────────────────────────────────────────────
 @app.post("/api/query", dependencies=[Depends(ai_rate_limit)])
-async def query_document(request: QueryRequest):
+async def query_document(request: QueryRequest, owner: str = Depends(workspace_owner)):
     """
     Ask any natural-language question about a previously uploaded document.
     ARIA finds the most relevant sections and answers using the LLM.
     """
+    require_owned(request.doc_id, owner)
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
@@ -170,15 +178,16 @@ async def query_document(request: QueryRequest):
 PUBLIC_DOCUMENT_FIELDS = ("doc_id", "company", "uploaded_at", "chunks")
 
 @app.get("/api/documents")
-async def list_documents(admin: bool = Depends(is_admin)):
+async def list_documents(x_workspace_id: str = Header(default=""), admin: bool = Depends(is_admin)):
     """
-    Return all documents that have been uploaded and processed.
-    Without the admin key only non-sensitive fields are returned (no filenames or text previews).
+    Documents uploaded from this browser's workspace (non-sensitive fields only).
+    With the admin key: every document with all fields.
     """
     docs = doc_agent.list_documents()
     if admin:
         return docs
-    return [{k: d.get(k) for k in PUBLIC_DOCUMENT_FIELDS} for d in docs]
+    owner = workspace_owner(x_workspace_id)
+    return [{k: d.get(k) for k in PUBLIC_DOCUMENT_FIELDS} for d in docs if d.get("owner") == owner]
 
 # ─────────────────────────────────────────────
 #  DELETE A DOCUMENT
@@ -193,7 +202,7 @@ async def delete_document(doc_id: str):
 # ─────────────────────────────────────────────
 #  SAVED ANALYSIS (no LLM call — used to reopen past audits)
 # ─────────────────────────────────────────────
-@app.get("/api/analysis/{doc_id}", response_model=RiskReport)
+@app.get("/api/analysis/{doc_id}", response_model=RiskReport, dependencies=[Depends(require_owned)])
 async def get_saved_analysis(doc_id: str):
     """Return the last analysis for a document, or 404 if it has never been analyzed."""
     analysis = risk_agent.load_analysis(doc_id)
@@ -205,39 +214,42 @@ async def get_saved_analysis(doc_id: str):
 # ─────────────────────────────────────────────
 #  FULL RISK ANALYSIS (Phase 2)
 # ─────────────────────────────────────────────
-@app.get("/api/analyze/{doc_id}", response_model=RiskReport, dependencies=[Depends(ai_rate_limit)])
-async def analyze_document(doc_id: str):
+@app.get("/api/analyze/{doc_id}", response_model=RiskReport, dependencies=[Depends(require_owned), Depends(ai_rate_limit)])
+async def analyze_document(doc_id: str, task_id: str = None):
     """
     Perform a multi-source risk analysis:
     1. Financial anomaly detection (Internal)
     2. Live news sentiment analysis (External)
     3. Aggregated risk scoring
     """
+    # A fresh ID per run, so a progress stream can't pick up the previous run's "complete"
+    progress_id = task_id or doc_id
+
     def sync_analyze():
         print(f"Starting analysis for doc {doc_id}")
         return risk_agent.run_full_analysis(
-            doc_id, 
-            progress_callback=lambda p, s: update_progress(doc_id, p, s)
+            doc_id,
+            progress_callback=lambda p, s: update_progress(progress_id, p, s)
         )
 
     try:
         result = await run_in_threadpool(sync_analyze)
     except Exception as e:
-        update_progress(doc_id, 100, "Analysis failed")
+        update_progress(progress_id, 100, "Analysis failed")
         if isinstance(e, DocumentError):
             raise HTTPException(status_code=422, detail=str(e))
         raise
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
     
-    update_progress(doc_id, 100, "Analysis complete!")
+    update_progress(progress_id, 100, "Analysis complete!")
     return result
 
 
 # ─────────────────────────────────────────────
 #  GENERATE PDF REPORT (Phase 3)
 # ─────────────────────────────────────────────
-@app.get("/api/report/{doc_id}", dependencies=[Depends(ai_rate_limit)])
+@app.get("/api/report/{doc_id}", dependencies=[Depends(require_owned), Depends(ai_rate_limit)])
 async def get_pdf_report(doc_id: str):
     """
     Generate and download a professional PDF risk report for a document.

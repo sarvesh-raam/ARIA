@@ -143,11 +143,11 @@ class DocumentAgent:
 
     # ── Public API ───────────────────────────────────────────────
 
-    def ingest_document(self, content: bytes, filename: str, progress_callback=None) -> dict:
+    def ingest_document(self, content: bytes, filename: str, owner: str, progress_callback=None) -> dict:
         print(f"DEBUG: ingest_document started for {filename}")
         if progress_callback: progress_callback(5, "Initializing processing...")
-        # Stable, reproducible ID based on file content
-        doc_id = hashlib.md5(content).hexdigest()[:12]
+        # Stable ID per file *and* workspace, so two visitors uploading the same file get separate copies
+        doc_id = hashlib.sha256(f"{owner}:{hashlib.md5(content).hexdigest()}".encode()).hexdigest()[:12]
 
         # Skip re-processing if already in DB (but fix anything that failed last time)
         metadata = self._load_metadata()
@@ -191,6 +191,7 @@ class DocumentAgent:
         # 5. Persist metadata
         doc_info = {
             "doc_id": doc_id,
+            "owner": owner,
             "filename": filename,
             "company": company,
             "company_source": company_source,
@@ -253,6 +254,10 @@ ANSWER:"""
 
     def list_documents(self) -> list:
         return self._load_metadata()
+
+    def get_owned_document(self, doc_id: str, owner: str):
+        """The document if it belongs to this workspace, else None (unknown and foreign look the same)."""
+        return next((d for d in self._load_metadata() if d["doc_id"] == doc_id and d.get("owner") == owner), None)
 
     def delete_document(self, doc_id: str) -> dict:
         self.chroma.delete_collection(doc_id)
