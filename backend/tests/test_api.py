@@ -81,6 +81,19 @@ def test_analyze_unknown_document_is_404(client):
     assert client.get("/api/analyze/000000000000").status_code == 404
 
 
+def test_saved_analysis(client, app_module):
+    assert client.get("/api/analysis/0123456789ab").status_code == 404
+    assert client.get("/api/analysis/..%2F..%2Fdocuments").status_code == 404
+    saved = {
+        "doc_id": "0123456789ab", "company": "Acme", "overall_risk_score": 12, "rating": "Low Risk [STABLE]",
+        "financial_signals": {"financial_risk_score": 5, "anomalies": [], "summary": "s"},
+        "news_signals": {"news_risk_score": 0, "summary": "s", "signals": []}, "timestamp": "t",
+    }
+    app_module.risk_agent._analysis_path("0123456789ab").write_text(__import__("json").dumps(saved))
+    r = client.get("/api/analysis/0123456789ab")
+    assert r.status_code == 200 and r.json()["overall_risk_score"] == 12
+
+
 def test_report_rejects_path_traversal(client):
     assert client.get("/api/report/..%2F..%2Fdocuments").status_code == 404
 
