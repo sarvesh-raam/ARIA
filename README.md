@@ -82,7 +82,7 @@ Other endpoints: `GET /api/documents` (list; filenames and previews only with th
   "financial_signals": {
     "financial_risk_score": 10,
     "key_metrics": [
-      { "metric": "Revenue", "current": "$130,497M (FY2026)", "prior": "$60,922M (FY2025)", "change": "+114%" }
+      { "metric": "Revenue", "current": "$130,497M (FY2025)", "prior": "$60,922M (FY2024)", "change": "+114%" }
     ],
     "anomalies": [
       {
