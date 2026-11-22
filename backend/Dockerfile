@@ -1,5 +1,5 @@
 # Use a high-performance Python base image
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 # Set system environment variables
 ENV PYTHONUNBUFFERED=1 \
